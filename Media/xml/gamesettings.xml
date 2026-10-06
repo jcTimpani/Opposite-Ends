@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+
+<settings>
+
+    <game name="Opposite Ends"/>
+
+    <renderer
+        width="720"
+        height="720"
+    />
+
+    <font file="Media\fonts\AverageSans_24.spritefont"/>
+
+    <sprites path="Media\textures">
+
+    <sprite
+        name="play"
+        file="play.png"
+    />
+
+    <sprite
+        name="tile"
+        file="tile.png"
+    />
+
+</sprites>
+
+</settings>
