@@ -5,5 +5,7 @@
 enum class eSprite : UINT {
     PlayButton,
     Tile,
+    PrimaryCharacter,
+    OppositeCharacter,
     Size
 };

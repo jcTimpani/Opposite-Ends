@@ -22,7 +22,11 @@
         name="tile"
         file="tile.png"
     />
-
+<sprite name="play" file="play.png"/>
+        <sprite name="tile" file="tile.png"/>
+        <sprite name="primary_character" file="primary_character.png"/>
+        <sprite name="opposite_character" file="opposite_character.png"/>
 </sprites>
 
 </settings>
+
