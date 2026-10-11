@@ -21,7 +21,7 @@ private:
 
     static constexpr int GRID_SIZE = 18;
     static constexpr float TILE_SIZE = 40.0f;
-    static constexpr float CHARACTER_SIZE = 32.0f;
+    static constexpr float CHARACTER_SIZE = 40.0f;
 
     // Rows increase downward; columns increase to the right.
     struct GridPosition {
@@ -31,6 +31,9 @@ private:
 
     GridPosition m_primaryPosition{ 4, 4 };
     GridPosition m_oppositePosition{ 13, 13 };
+
+	eSprite m_primarySprite = eSprite::PrimaryCharaDown;
+	eSprite m_oppositeSprite = eSprite::OppositeCharaUp;
 
     void DrawGameGrid();
     void DrawTile(int row, int col, const XMFLOAT4& color);

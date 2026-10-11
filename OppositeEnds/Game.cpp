@@ -25,8 +25,14 @@ void CGame::LoadImages() {
 
     m_pRenderer->Load(eSprite::PlayButton, "play");
     m_pRenderer->Load(eSprite::Tile, "tile");
-    m_pRenderer->Load(eSprite::PrimaryCharacter, "primary_character");
-    m_pRenderer->Load(eSprite::OppositeCharacter, "opposite_character");
+    m_pRenderer->Load(eSprite::PrimaryCharaDown, "astronaut_a_down");
+	m_pRenderer->Load(eSprite::PrimaryCharaLeft, "astronaut_a_left");
+	m_pRenderer->Load(eSprite::PrimaryCharaRight, "astronaut_a_right"); 
+	m_pRenderer->Load(eSprite::PrimaryCharaUp, "astronaut_a_up");
+    m_pRenderer->Load(eSprite::OppositeCharaDown, "astronaut_b_down");
+	m_pRenderer->Load(eSprite::OppositeCharaLeft, "astronaut_b_left");
+	m_pRenderer->Load(eSprite::OppositeCharaRight, "astronaut_b_right");  
+	m_pRenderer->Load(eSprite::OppositeCharaUp, "astronaut_b_up");
 
     m_pRenderer->EndResourceUpload();
 }
@@ -75,18 +81,26 @@ void CGame::KeyboardHandler() {
     if (m_pKeyboard->TriggerDown('W') ||
         m_pKeyboard->TriggerDown(VK_UP)) {
         TryMove(-1, 0);
+		m_primarySprite = eSprite::PrimaryCharaUp; 
+		m_oppositeSprite = eSprite::OppositeCharaDown;
     }
     else if (m_pKeyboard->TriggerDown('A') ||
         m_pKeyboard->TriggerDown(VK_LEFT)) {
         TryMove(0, -1);
+		m_primarySprite = eSprite::PrimaryCharaLeft;
+		m_oppositeSprite = eSprite::OppositeCharaRight;
     }
     else if (m_pKeyboard->TriggerDown('S') ||
         m_pKeyboard->TriggerDown(VK_DOWN)) {
         TryMove(1, 0);
+		m_primarySprite = eSprite::PrimaryCharaDown;
+		m_oppositeSprite = eSprite::OppositeCharaUp;
     }
     else if (m_pKeyboard->TriggerDown('D') ||
         m_pKeyboard->TriggerDown(VK_RIGHT)) {
         TryMove(0, 1);
+		m_primarySprite = eSprite::PrimaryCharaRight;
+		m_oppositeSprite = eSprite::OppositeCharaLeft;
     }
 
 }
@@ -212,8 +226,8 @@ void CGame::RenderFrame() {
     }
     else {
         DrawGameGrid();
-        DrawCharacter(eSprite::PrimaryCharacter, m_primaryPosition);
-        DrawCharacter(eSprite::OppositeCharacter, m_oppositePosition);
+        DrawCharacter(m_primarySprite, m_primaryPosition);
+        DrawCharacter(m_oppositeSprite, m_oppositePosition);
     }
 
     m_pRenderer->EndFrame();
