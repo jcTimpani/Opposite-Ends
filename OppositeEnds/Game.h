@@ -32,8 +32,9 @@ private:
     GridPosition m_primaryPosition{ 4, 4 };
     GridPosition m_oppositePosition{ 13, 13 };
 
+	// Starting sprites for the characters
 	eSprite m_primarySprite = eSprite::PrimaryCharaDown;
-	eSprite m_oppositeSprite = eSprite::OppositeCharaUp;
+	eSprite m_oppositeSprite = eSprite::OppositeCharaDown;
 
     void DrawGameGrid();
     void DrawTile(int row, int col, const XMFLOAT4& color);
