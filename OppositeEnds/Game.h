@@ -44,6 +44,7 @@ private:
     void KeyboardHandler();
     void TryMove(int rowDelta, int colDelta);
     bool IsInsidePlayArea(const GridPosition& position) const;
+    bool IsObstacle(const GridPosition& position) const;
 
     void RenderFrame();
     void DrawStartScreen();

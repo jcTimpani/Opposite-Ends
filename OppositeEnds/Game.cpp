@@ -111,6 +111,22 @@ bool CGame::IsInsidePlayArea(const GridPosition& position) const {
         position.col > 0 && position.col < GRID_SIZE - 1;
 }
 
+// Fixed internal walls for the first obstacle test level.
+bool CGame::IsObstacle(const GridPosition& position) const {
+    static const GridPosition obstacles[] = {
+        { 6, 4 }, { 6, 5 }, { 6, 6 }, { 6, 7 }, { 6, 8 },
+        { 11, 10 }, { 12, 10 }, { 13, 10 }
+    };
+
+    for (const GridPosition& obstacle : obstacles) {
+        if (position.row == obstacle.row && position.col == obstacle.col) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void CGame::TryMove(int rowDelta, int colDelta) {
     const GridPosition nextPrimary{
         m_primaryPosition.row + rowDelta,
@@ -123,14 +139,14 @@ void CGame::TryMove(int rowDelta, int colDelta) {
         m_oppositePosition.col - colDelta
     };
 
-    // Only move when BOTH destinations are inside the playable grid.
-    if (!IsInsidePlayArea(nextPrimary) ||
-        !IsInsidePlayArea(nextOpposite)) {
-        return;
+    // Each astronaut is blocked independently by borders and internal walls.
+    if (IsInsidePlayArea(nextPrimary) && !IsObstacle(nextPrimary)) {
+        m_primaryPosition = nextPrimary;
     }
 
-    m_primaryPosition = nextPrimary;
-    m_oppositePosition = nextOpposite;
+    if (IsInsidePlayArea(nextOpposite) && !IsObstacle(nextOpposite)) {
+        m_oppositePosition = nextOpposite;
+    }
 }
 
 void CGame::DrawStartScreen() {
@@ -201,12 +217,16 @@ void CGame::DrawGameGrid() {
     const XMFLOAT4 orange = XMFLOAT4(1.0f, 0.45f, 0.05f, 1.0f);
     const XMFLOAT4 gray = XMFLOAT4(0.35f, 0.35f, 0.35f, 1.0f);
     const XMFLOAT4 lightGray = XMFLOAT4(0.65f, 0.65f, 0.65f, 1.0f);
+    const XMFLOAT4 wallColor = XMFLOAT4(0.38f, 0.20f, 0.72f, 1.0f);
 
     for (int row = 0; row < GRID_SIZE; row++) {
         for (int col = 0; col < GRID_SIZE; col++) {
             if (row == 0 || row == GRID_SIZE - 1 ||
                 col == 0 || col == GRID_SIZE - 1) {
                 DrawTile(row, col, orange);
+            }
+            else if (IsObstacle(GridPosition{ row, col })) {
+                DrawTile(row, col, wallColor);
             }
             else if ((row + col) % 2 == 0) {
                 DrawTile(row, col, gray);
