@@ -24,6 +24,7 @@
     />
 <sprite name="play" file="play.png"/>
         <sprite name="tile" file="tile.png"/>
+		<sprite name="background" file="background.png"/>
         <sprite name="astronaut_a_down" file="astronaut_a_down.png"/>
 		<sprite name="astronaut_a_left" file="astronaut_a_left.png"/>
 		<sprite name="astronaut_a_right" file="astronaut_a_right.png"/>
@@ -32,6 +33,9 @@
 		<sprite name="astronaut_b_left" file="astronaut_b_left.png"/>
 		<sprite name="astronaut_b_right" file="astronaut_b_right.png"/>
 		<sprite name="astronaut_b_up" file="astronaut_b_up.png"/>
+        <sprite name="primary_goal" file="primary_goal.png"/>
+        <sprite name="opposite_goal" file="opposite_goal.png"/>
+		<sprite name="shared_goal" file="shared_goal.png"/>
 </sprites>
 
 </settings>

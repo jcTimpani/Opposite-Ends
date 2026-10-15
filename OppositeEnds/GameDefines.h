@@ -5,6 +5,7 @@
 enum class eSprite : UINT {
     PlayButton,
     Tile,
+	Background,
     PrimaryCharaDown,
     PrimaryCharaLeft,
     PrimaryCharaRight,
@@ -13,5 +14,8 @@ enum class eSprite : UINT {
     OppositeCharaLeft,
     OppositeCharaRight,
     OppositeCharaUp,
+	PrimaryGoal,
+	OppositeGoal,
+	SharedGoal,
     Size
 };
