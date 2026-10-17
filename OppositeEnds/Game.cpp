@@ -2,6 +2,7 @@
 #include "ComponentIncludes.h"
 
 #include <Windows.h>
+#include <string>
 
 void CGame::Initialize() {
     m_pRenderer = new LSpriteRenderer(eSpriteMode::Batched2D);
@@ -77,6 +78,22 @@ void CGame::KeyboardHandler() {
         return;
     }
 
+    if (m_pKeyboard->TriggerDown('R')) {
+        m_obstacles.Reset();
+        m_facingHistory.clear();
+        m_primarySprite = eSprite::PrimaryCharaDown;
+        m_oppositeSprite = eSprite::OppositeCharaDown;
+        return;
+    }
+    if (m_pKeyboard->TriggerDown('Z')) {
+        if (m_obstacles.Undo() && !m_facingHistory.empty()) {
+            const auto previousFacing = m_facingHistory.back();
+            m_facingHistory.pop_back();
+            m_primarySprite = previousFacing.first;
+            m_oppositeSprite = previousFacing.second;
+        }
+        return;
+    }
 
     if (m_pKeyboard->TriggerDown('W') ||
         m_pKeyboard->TriggerDown(VK_UP)) {
@@ -105,32 +122,11 @@ void CGame::KeyboardHandler() {
 
 }
 
-bool CGame::IsInsidePlayArea(const GridPosition& position) const {
-    // Tile 0 and tile GRID_SIZE - 1 form the orange wall.
-    return position.row > 0 && position.row < GRID_SIZE - 1 &&
-        position.col > 0 && position.col < GRID_SIZE - 1;
-}
-
 void CGame::TryMove(int rowDelta, int colDelta) {
-    const GridPosition nextPrimary{
-        m_primaryPosition.row + rowDelta,
-        m_primaryPosition.col + colDelta
-    };
-
-    // The opposite character always takes the inverse step.
-    const GridPosition nextOpposite{
-        m_oppositePosition.row - rowDelta,
-        m_oppositePosition.col - colDelta
-    };
-
-    // Only move when BOTH destinations are inside the playable grid.
-    if (!IsInsidePlayArea(nextPrimary) ||
-        !IsInsidePlayArea(nextOpposite)) {
-        return;
+    // Keep facing direction in sync with the pure puzzle state for Undo.
+    if (m_obstacles.TryMove(rowDelta, colDelta)) {
+        m_facingHistory.emplace_back(m_primarySprite, m_oppositeSprite);
     }
-
-    m_primaryPosition = nextPrimary;
-    m_oppositePosition = nextOpposite;
 }
 
 void CGame::DrawStartScreen() {
@@ -179,6 +175,18 @@ void CGame::DrawTile(int row, int col, const XMFLOAT4& color) {
     m_pRenderer->Draw(&tile);
 }
 
+void CGame::DrawCrate(int row, int col) {
+    // A smaller golden tile represents a pushable crate until art is ready.
+    LSpriteDesc2D crate;
+    crate.m_nSpriteIndex = static_cast<UINT>(eSprite::Tile);
+    crate.m_vPos = Vector2(col * TILE_SIZE + TILE_SIZE / 2.0f,
+        SCREEN_HEIGHT - (row * TILE_SIZE + TILE_SIZE / 2.0f));
+    crate.m_fXScale = (TILE_SIZE * 0.76f) / m_pRenderer->GetWidth(eSprite::Tile);
+    crate.m_fYScale = (TILE_SIZE * 0.76f) / m_pRenderer->GetHeight(eSprite::Tile);
+    crate.m_f4Tint = XMFLOAT4(0.96f, 0.73f, 0.20f, 1.0f);
+    m_pRenderer->Draw(&crate);
+}
+
 void CGame::DrawCharacter(eSprite sprite, const GridPosition& position) {
     LSpriteDesc2D character;
     character.m_nSpriteIndex = static_cast<UINT>(sprite);
@@ -201,6 +209,7 @@ void CGame::DrawGameGrid() {
     const XMFLOAT4 orange = XMFLOAT4(1.0f, 0.45f, 0.05f, 1.0f);
     const XMFLOAT4 gray = XMFLOAT4(0.35f, 0.35f, 0.35f, 1.0f);
     const XMFLOAT4 lightGray = XMFLOAT4(0.65f, 0.65f, 0.65f, 1.0f);
+    const XMFLOAT4 wallColor = XMFLOAT4(0.38f, 0.20f, 0.72f, 1.0f);
 
     for (int row = 0; row < GRID_SIZE; row++) {
         for (int col = 0; col < GRID_SIZE; col++) {
@@ -208,11 +217,17 @@ void CGame::DrawGameGrid() {
                 col == 0 || col == GRID_SIZE - 1) {
                 DrawTile(row, col, orange);
             }
+            else if (m_obstacles.IsWall(GridPosition{ row, col })) {
+                DrawTile(row, col, wallColor);
+            }
             else if ((row + col) % 2 == 0) {
                 DrawTile(row, col, gray);
             }
             else {
                 DrawTile(row, col, lightGray);
+            }
+            if (m_obstacles.IsCrate(GridPosition{ row, col })) {
+                DrawCrate(row, col);
             }
         }
     }
@@ -226,8 +241,11 @@ void CGame::RenderFrame() {
     }
     else {
         DrawGameGrid();
-        DrawCharacter(m_primarySprite, m_primaryPosition);
-        DrawCharacter(m_oppositeSprite, m_oppositePosition);
+        DrawCharacter(m_primarySprite, m_obstacles.PrimaryPosition());
+        DrawCharacter(m_oppositeSprite, m_obstacles.OppositePosition());
+        const std::string hud = "Moves: " + std::to_string(m_obstacles.MoveCount()) +
+            "   Z: Undo   R: Reset";
+        m_pRenderer->DrawScreenText(hud.c_str(), Vector2(10.0f, 700.0f), Colors::White);
     }
 
     m_pRenderer->EndFrame();
