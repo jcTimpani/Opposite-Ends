@@ -342,19 +342,24 @@ void CGame::Release() {
     m_pRenderer = nullptr;
 }
 
+
 bool CGame::IsGameWon() const {
-	// Incomeplete until implementing shared goal functionality.
+    // Shared goal functionality is not implemented yet.
     if (m_sharedGoal) {
         return false;
     }
-	// check if both characters are at their respective goal positions
-    else {
-        return m_primaryPosition.row == m_primaryGoalPosition.row &&
-            m_primaryPosition.col == m_primaryGoalPosition.col &&
-            m_oppositePosition.row == m_oppositeGoalPosition.row &&
-            m_oppositePosition.col == m_oppositeGoalPosition.col;
-	}
+
+    // Get character positions from the obstacle system.
+    const GridPosition primary = m_obstacles.PrimaryPosition();
+    const GridPosition opposite = m_obstacles.OppositePosition();
+
+    // Check whether both characters reached their goals.
+    return primary.row == m_primaryGoalPosition.row &&
+        primary.col == m_primaryGoalPosition.col &&
+        opposite.row == m_oppositeGoalPosition.row &&
+        opposite.col == m_oppositeGoalPosition.col;
 }
+
 
 void CGame::GameWon() {
 
