@@ -19,6 +19,7 @@ void CGame::Initialize() {
 
     LoadImages();
     m_bGameStarted = false;
+	m_bGameWon = false;
 }
 
 void CGame::LoadImages() {
@@ -26,6 +27,7 @@ void CGame::LoadImages() {
 
     m_pRenderer->Load(eSprite::PlayButton, "play");
     m_pRenderer->Load(eSprite::Tile, "tile");
+	m_pRenderer->Load(eSprite::Background, "background");
     m_pRenderer->Load(eSprite::PrimaryCharaDown, "astronaut_a_down");
 	m_pRenderer->Load(eSprite::PrimaryCharaLeft, "astronaut_a_left");
 	m_pRenderer->Load(eSprite::PrimaryCharaRight, "astronaut_a_right"); 
@@ -34,6 +36,9 @@ void CGame::LoadImages() {
 	m_pRenderer->Load(eSprite::OppositeCharaLeft, "astronaut_b_left");
 	m_pRenderer->Load(eSprite::OppositeCharaRight, "astronaut_b_right");  
 	m_pRenderer->Load(eSprite::OppositeCharaUp, "astronaut_b_up");
+	m_pRenderer->Load(eSprite::PrimaryGoal, "primary_goal");
+	m_pRenderer->Load(eSprite::OppositeGoal, "opposite_goal");
+    m_pRenderer->Load(eSprite::SharedGoal, "shared_goal");
 
     m_pRenderer->EndResourceUpload();
 }
@@ -122,6 +127,11 @@ void CGame::KeyboardHandler() {
 
 }
 
+bool CGame::IsInsidePlayArea(const GridPosition& position) const {
+    return position.row > 0 && position.row < GRID_SIZE - 1 &&
+        position.col > 0 && position.col < GRID_SIZE - 1;
+}
+
 void CGame::TryMove(int rowDelta, int colDelta) {
     // Keep facing direction in sync with the pure puzzle state for Undo.
     if (m_obstacles.TryMove(rowDelta, colDelta)) {
@@ -170,6 +180,7 @@ void CGame::DrawTile(int row, int col, const XMFLOAT4& color) {
 
     tile.m_fXScale = TILE_SIZE / originalWidth;
     tile.m_fYScale = TILE_SIZE / originalHeight;
+
     tile.m_f4Tint = color;
 
     m_pRenderer->Draw(&tile);
@@ -200,28 +211,35 @@ void CGame::DrawCharacter(eSprite sprite, const GridPosition& position) {
     const float height = m_pRenderer->GetHeight(sprite);
     character.m_fXScale = CHARACTER_SIZE / width;
     character.m_fYScale = CHARACTER_SIZE / height;
-    character.m_f4Tint = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
     m_pRenderer->Draw(&character);
 }
 
 void CGame::DrawGameGrid() {
-    const XMFLOAT4 orange = XMFLOAT4(1.0f, 0.45f, 0.05f, 1.0f);
+    
+	// Draw the background
     const XMFLOAT4 gray = XMFLOAT4(0.35f, 0.35f, 0.35f, 1.0f);
     const XMFLOAT4 lightGray = XMFLOAT4(0.65f, 0.65f, 0.65f, 1.0f);
     const XMFLOAT4 wallColor = XMFLOAT4(0.38f, 0.20f, 0.72f, 1.0f);
 
+       LSpriteDesc2D background;
+	   background.m_nSpriteIndex = static_cast<UINT>(eSprite::Background);
+	   background.m_vPos = Vector2(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f);
+
+	   m_pRenderer->Draw(&background);
+
+	   // Draw grid tiles
     for (int row = 0; row < GRID_SIZE; row++) {
         for (int col = 0; col < GRID_SIZE; col++) {
             if (row == 0 || row == GRID_SIZE - 1 ||
                 col == 0 || col == GRID_SIZE - 1) {
-                DrawTile(row, col, orange);
+                continue;
             }
             else if (m_obstacles.IsWall(GridPosition{ row, col })) {
                 DrawTile(row, col, wallColor);
             }
             else if ((row + col) % 2 == 0) {
-                DrawTile(row, col, gray);
+				DrawTile(row, col, gray);
             }
             else {
                 DrawTile(row, col, lightGray);
@@ -231,12 +249,73 @@ void CGame::DrawGameGrid() {
             }
         }
     }
+
+    // Draw goals
+    if (m_sharedGoal) {
+        DrawSharedGoal(m_primaryGoalPosition);
+    }
+    else {
+        DrawGoals(m_primaryGoalPosition, m_oppositeGoalPosition);
+    }
+}
+
+// Draw separate goals for each character
+void CGame::DrawGoals(const GridPosition& primaryGoalPosition, const GridPosition& oppositeGoalPosition) {
+    
+    LSpriteDesc2D primaryGoal;
+    LSpriteDesc2D oppositeGoal;
+
+	// Draw the primary goal
+	primaryGoal.m_nSpriteIndex = static_cast<UINT>(eSprite::PrimaryGoal);
+
+    const float x = primaryGoalPosition.col * TILE_SIZE + TILE_SIZE / 2.0f;
+    const float y = SCREEN_HEIGHT - (primaryGoalPosition.row * TILE_SIZE + TILE_SIZE / 2.0f);
+    primaryGoal.m_vPos = Vector2(x, y);
+
+    const float width = m_pRenderer->GetWidth(eSprite::PrimaryGoal);
+    const float height = m_pRenderer->GetHeight(eSprite::PrimaryGoal);
+    primaryGoal.m_fXScale = GOAL_SIZE / width;
+    primaryGoal.m_fYScale = GOAL_SIZE / height;
+
+    m_pRenderer->Draw(&primaryGoal);
+
+	// Draw the opposite goal
+    oppositeGoal.m_nSpriteIndex = static_cast<UINT>(eSprite::OppositeGoal);
+
+    const float oppositeX = oppositeGoalPosition.col * TILE_SIZE + TILE_SIZE / 2.0f;
+    const float oppositeY = SCREEN_HEIGHT - (oppositeGoalPosition.row * TILE_SIZE + TILE_SIZE / 2.0f);
+    oppositeGoal.m_vPos = Vector2(oppositeX, oppositeY);
+
+    const float oppositeWidth = m_pRenderer->GetWidth(eSprite::OppositeGoal);
+    const float oppositeHeight = m_pRenderer->GetHeight(eSprite::OppositeGoal);
+    oppositeGoal.m_fXScale = GOAL_SIZE / oppositeWidth;
+    oppositeGoal.m_fYScale = GOAL_SIZE / oppositeHeight;
+
+    m_pRenderer->Draw(&oppositeGoal);
+}
+
+// Draw a shared goal for both characters
+void CGame::DrawSharedGoal(const GridPosition& goalPosition) {
+    LSpriteDesc2D sharedGoal;
+
+    sharedGoal.m_nSpriteIndex = static_cast<UINT>(eSprite::SharedGoal);
+
+    const float x = goalPosition.col * TILE_SIZE + TILE_SIZE / 2.0f;
+    const float y = SCREEN_HEIGHT - (goalPosition.row * TILE_SIZE + TILE_SIZE / 2.0f);
+    sharedGoal.m_vPos = Vector2(x, y);
+
+    const float width = m_pRenderer->GetWidth(eSprite::SharedGoal);
+    const float height = m_pRenderer->GetHeight(eSprite::SharedGoal);
+    sharedGoal.m_fXScale = CHARACTER_SIZE / width;
+    sharedGoal.m_fYScale = CHARACTER_SIZE / height;
+
+    m_pRenderer->Draw(&sharedGoal);
 }
 
 void CGame::RenderFrame() {
     m_pRenderer->BeginFrame();
 
-    if (!m_bGameStarted) {
+    if (!m_bGameStarted && !m_bGameWon) {
         DrawStartScreen();
     }
     else {
@@ -248,6 +327,8 @@ void CGame::RenderFrame() {
         m_pRenderer->DrawScreenText(hud.c_str(), Vector2(10.0f, 700.0f), Colors::White);
     }
 
+	// Check if the game has been won before ending the frame to ensure the "YOU WIN!" message is displayed immediately and properly
+    if (IsGameWon()) { GameWon(); }
     m_pRenderer->EndFrame();
 }
 
@@ -259,4 +340,30 @@ void CGame::ProcessFrame() {
 void CGame::Release() {
     delete m_pRenderer;
     m_pRenderer = nullptr;
+}
+
+bool CGame::IsGameWon() const {
+	// Incomeplete until implementing shared goal functionality.
+    if (m_sharedGoal) {
+        return false;
+    }
+	// check if both characters are at their respective goal positions
+    else {
+        return m_primaryPosition.row == m_primaryGoalPosition.row &&
+            m_primaryPosition.col == m_primaryGoalPosition.col &&
+            m_oppositePosition.row == m_oppositeGoalPosition.row &&
+            m_oppositePosition.col == m_oppositeGoalPosition.col;
+	}
+}
+
+void CGame::GameWon() {
+
+	m_bGameStarted = false;
+	m_bGameWon = true;
+
+    m_pRenderer->DrawScreenText(
+        "YOU WIN!",
+        Vector2(300.0f, 360.0f),
+        Colors::White
+	);
 }
