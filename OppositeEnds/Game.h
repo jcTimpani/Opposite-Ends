@@ -52,7 +52,9 @@ private:
 	bool m_sharedGoal = false;
 
     void DrawGameGrid();
-    void DrawTile(int row, int col, const XMFLOAT4& color);
+    void DrawTile(int row, int col,
+        const XMFLOAT4& color,
+        eSprite sprite = eSprite::Tile);
     void DrawCharacter(eSprite sprite, const GridPosition& position);
     void DrawCrate(int row, int col);
 

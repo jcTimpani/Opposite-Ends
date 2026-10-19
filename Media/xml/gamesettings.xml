@@ -36,6 +36,8 @@
         <sprite name="primary_goal" file="primary_goal.png"/>
         <sprite name="opposite_goal" file="opposite_goal.png"/>
 		<sprite name="shared_goal" file="shared_goal.png"/>
+<sprite name="wall" file="wall.png"/>
+<sprite name="crate" file="crate.png"/>
 </sprites>
 
 </settings>

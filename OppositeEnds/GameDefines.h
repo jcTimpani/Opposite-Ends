@@ -5,6 +5,8 @@
 enum class eSprite : UINT {
     PlayButton,
     Tile,
+    Wall,
+    Crate,
 	Background,
     PrimaryCharaDown,
     PrimaryCharaLeft,

@@ -27,6 +27,8 @@ void CGame::LoadImages() {
 
     m_pRenderer->Load(eSprite::PlayButton, "play");
     m_pRenderer->Load(eSprite::Tile, "tile");
+    m_pRenderer->Load(eSprite::Wall, "wall");
+    m_pRenderer->Load(eSprite::Crate, "crate");
 	m_pRenderer->Load(eSprite::Background, "background");
     m_pRenderer->Load(eSprite::PrimaryCharaDown, "astronaut_a_down");
 	m_pRenderer->Load(eSprite::PrimaryCharaLeft, "astronaut_a_left");
@@ -166,17 +168,23 @@ void CGame::DrawStartScreen() {
     m_pRenderer->Draw(&button);
 }
 
-void CGame::DrawTile(int row, int col, const XMFLOAT4& color) {
+
+void CGame::DrawTile(int row, int col,
+    const XMFLOAT4& color, eSprite sprite) {
+
     LSpriteDesc2D tile;
-    tile.m_nSpriteIndex = static_cast<UINT>(eSprite::Tile);
+
+    // Use the sprite passed into the function
+    tile.m_nSpriteIndex = static_cast<UINT>(sprite);
 
     const float x = col * TILE_SIZE + TILE_SIZE / 2.0f;
     const float y = SCREEN_HEIGHT - (row * TILE_SIZE + TILE_SIZE / 2.0f);
 
     tile.m_vPos = Vector2(x, y);
 
-    const float originalWidth = m_pRenderer->GetWidth(eSprite::Tile);
-    const float originalHeight = m_pRenderer->GetHeight(eSprite::Tile);
+    // Get the dimensions of the selected texture
+    const float originalWidth = m_pRenderer->GetWidth(sprite);
+    const float originalHeight = m_pRenderer->GetHeight(sprite);
 
     tile.m_fXScale = TILE_SIZE / originalWidth;
     tile.m_fYScale = TILE_SIZE / originalHeight;
@@ -186,15 +194,26 @@ void CGame::DrawTile(int row, int col, const XMFLOAT4& color) {
     m_pRenderer->Draw(&tile);
 }
 
+
 void CGame::DrawCrate(int row, int col) {
-    // A smaller golden tile represents a pushable crate until art is ready.
     LSpriteDesc2D crate;
-    crate.m_nSpriteIndex = static_cast<UINT>(eSprite::Tile);
-    crate.m_vPos = Vector2(col * TILE_SIZE + TILE_SIZE / 2.0f,
-        SCREEN_HEIGHT - (row * TILE_SIZE + TILE_SIZE / 2.0f));
-    crate.m_fXScale = (TILE_SIZE * 0.76f) / m_pRenderer->GetWidth(eSprite::Tile);
-    crate.m_fYScale = (TILE_SIZE * 0.76f) / m_pRenderer->GetHeight(eSprite::Tile);
-    crate.m_f4Tint = XMFLOAT4(0.96f, 0.73f, 0.20f, 1.0f);
+
+    crate.m_nSpriteIndex = static_cast<UINT>(eSprite::Crate);
+
+    const float x = col * TILE_SIZE + TILE_SIZE / 2.0f;
+    const float y = SCREEN_HEIGHT -
+        (row * TILE_SIZE + TILE_SIZE / 2.0f);
+
+    crate.m_vPos = Vector2(x, y);
+
+    const float width = m_pRenderer->GetWidth(eSprite::Crate);
+    const float height = m_pRenderer->GetHeight(eSprite::Crate);
+
+    crate.m_fXScale = (TILE_SIZE * 0.90f) / width;
+    crate.m_fYScale = (TILE_SIZE * 0.90f) / height;
+
+    crate.m_f4Tint = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
     m_pRenderer->Draw(&crate);
 }
 
@@ -236,7 +255,9 @@ void CGame::DrawGameGrid() {
                 continue;
             }
             else if (m_obstacles.IsWall(GridPosition{ row, col })) {
-                DrawTile(row, col, wallColor);
+                DrawTile(row, col,
+                    XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
+                    eSprite::Wall);
             }
             else if ((row + col) % 2 == 0) {
 				DrawTile(row, col, gray);
