@@ -33,6 +33,53 @@ bool ObstacleSystem::IsWall(const Position& position) const {
     return false;
 }
 
+// Two plates control one door. One plate is accessible to the primary
+// astronaut immediately, while the other can be held down by a pushed crate.
+bool ObstacleSystem::IsPlate(const Position& position) const {
+    static const Position plates[] = { { 5, 4 }, { 4, 7 } };
+    for (const Position& plate : plates) {
+        if (SamePosition(position, plate)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ObstacleSystem::IsPlateOccupied(const Position& position) const {
+    return IsPlate(position) &&
+        (SamePosition(position, m_primary) ||
+         SamePosition(position, m_opposite) ||
+         IsCrate(position));
+}
+
+bool ObstacleSystem::IsDoor(const Position& position) const {
+    return SamePosition(position, Position{ 12, 13 });
+}
+
+bool ObstacleSystem::IsPlatePressed() const {
+    static const Position plates[] = { { 5, 4 }, { 4, 7 } };
+    for (const Position& plate : plates) {
+        if (IsPlateOccupied(plate)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ObstacleSystem::IsDoorOccupied() const {
+    return IsDoor(m_primary) || IsDoor(m_opposite) || IsCrate({ 12, 13 });
+}
+
+bool ObstacleSystem::IsDoorOpen() const {
+    // Keep the gate open while something is inside so it never closes onto
+    // an astronaut or crate after a pressure plate is released.
+    return IsPlatePressed() || IsDoorOccupied();
+}
+
+bool ObstacleSystem::IsBlocked(const Position& position) const {
+    return IsWall(position) || (IsDoor(position) && !IsDoorOpen());
+}
+
 int ObstacleSystem::FindCrate(const Position& position) const {
     for (int i = 0; i < kCrateCount; ++i) {
         if (SamePosition(position, m_crates[i])) {
@@ -64,7 +111,9 @@ bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
     const auto planMove = [this](Position start, int dr, int dc) {
         MovePlan plan;
         plan.destination = Advance(start, dr, dc);
-        if (IsWall(plan.destination)) {
+        // Use the switch state at the START of the input for both players.
+        // A plate newly pressed on this turn opens the gate on the next turn.
+        if (IsBlocked(plan.destination)) {
             return plan;
         }
 
@@ -73,7 +122,7 @@ bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
             plan.crateDestination = Advance(plan.destination, dr, dc);
             // Single-crate pushes only. A crate cannot enter a wall, another
             // crate, or either character's occupied starting tile.
-            if (IsWall(plan.crateDestination) ||
+            if (IsBlocked(plan.crateDestination) ||
                 IsCrate(plan.crateDestination) ||
                 SamePosition(plan.crateDestination, m_primary) ||
                 SamePosition(plan.crateDestination, m_opposite)) {

@@ -24,6 +24,11 @@ public:
 
     bool IsWall(const Position& position) const;
     bool IsCrate(const Position& position) const;
+    bool IsPlate(const Position& position) const;
+    bool IsPlateOccupied(const Position& position) const;
+    bool IsDoor(const Position& position) const;
+    bool IsPlatePressed() const;
+    bool IsDoorOpen() const;
 
     Position PrimaryPosition() const { return m_primary; }
     Position OppositePosition() const { return m_opposite; }
@@ -45,6 +50,8 @@ private:
     std::vector<Snapshot> m_history;
     int m_moveCount = 0;
 
+    bool IsBlocked(const Position& position) const;
+    bool IsDoorOccupied() const;
     int FindCrate(const Position& position) const;
     static bool SamePosition(const Position& a, const Position& b);
 };

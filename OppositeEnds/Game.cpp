@@ -259,6 +259,21 @@ void CGame::DrawGameGrid() {
                     XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
                     eSprite::Wall);
             }
+            else if (m_obstacles.IsDoor(GridPosition{ row, col })) {
+                // Red = closed; green = open. Use existing tile art so no
+                // additional texture dependency is introduced.
+                const bool open = m_obstacles.IsDoorOpen();
+                DrawTile(row, col, open
+                    ? XMFLOAT4(0.16f, 0.75f, 0.34f, 1.0f)
+                    : XMFLOAT4(0.86f, 0.15f, 0.18f, 1.0f));
+            }
+            else if (m_obstacles.IsPlate(GridPosition{ row, col })) {
+                // Each plate lights up only when THIS plate is occupied.
+                const bool active = m_obstacles.IsPlateOccupied(GridPosition{ row, col });
+                DrawTile(row, col, active
+                    ? XMFLOAT4(0.15f, 0.85f, 0.24f, 1.0f)
+                    : XMFLOAT4(0.97f, 0.70f, 0.13f, 1.0f));
+            }
             else if ((row + col) % 2 == 0) {
 				DrawTile(row, col, gray);
             }
@@ -343,9 +358,12 @@ void CGame::RenderFrame() {
         DrawGameGrid();
         DrawCharacter(m_primarySprite, m_obstacles.PrimaryPosition());
         DrawCharacter(m_oppositeSprite, m_obstacles.OppositePosition());
+        // Split the HUD into two short labels and move both inside the
+        // 720x720 view to avoid the previously clipped long text line.
         const std::string hud = "Moves: " + std::to_string(m_obstacles.MoveCount()) +
-            "   Z: Undo   R: Reset";
-        m_pRenderer->DrawScreenText(hud.c_str(), Vector2(10.0f, 700.0f), Colors::White);
+            (m_obstacles.IsDoorOpen() ? "   Gate: OPEN" : "   Gate: CLOSED");
+        m_pRenderer->DrawScreenText(hud.c_str(), Vector2(45.0f, 666.0f), Colors::White);
+        m_pRenderer->DrawScreenText("Z: Undo  R: Reset", Vector2(410.0f, 666.0f), Colors::White);
     }
 
 	// Check if the game has been won before ending the frame to ensure the "YOU WIN!" message is displayed immediately and properly
