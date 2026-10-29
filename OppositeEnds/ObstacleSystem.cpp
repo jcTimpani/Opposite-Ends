@@ -15,11 +15,6 @@ bool ObstacleSystem::SamePosition(const Position& a, const Position& b) {
 }
 
 bool ObstacleSystem::IsWall(const Position& position) const {
-    // Orange outer border and purple walls are all solid.
-    if (position.row <= 0 || position.row >= kGridSize - 1 ||
-        position.col <= 0 || position.col >= kGridSize - 1) {
-        return true;
-    }
 
     static const Position walls[] = {
         { 6, 4 }, { 6, 5 }, { 6, 6 }, { 6, 7 }, { 6, 8 },

@@ -20,6 +20,7 @@ void CGame::Initialize() {
     LoadImages();
     m_bGameStarted = false;
 	m_bGameWon = false;
+    m_bGameOver = false;
 }
 
 void CGame::LoadImages() {
@@ -336,7 +337,7 @@ void CGame::DrawSharedGoal(const GridPosition& goalPosition) {
 void CGame::RenderFrame() {
     m_pRenderer->BeginFrame();
 
-    if (!m_bGameStarted && !m_bGameWon) {
+    if (!m_bGameStarted && !m_bGameWon && !m_bGameOver) {
         DrawStartScreen();
     }
     else {
@@ -350,6 +351,7 @@ void CGame::RenderFrame() {
 
 	// Check if the game has been won before ending the frame to ensure the "YOU WIN!" message is displayed immediately and properly
     if (IsGameWon()) { GameWon(); }
+	else if (IsGameOver()) { GameOver(); }
     m_pRenderer->EndFrame();
 }
 
@@ -381,6 +383,14 @@ bool CGame::IsGameWon() const {
         opposite.col == m_oppositeGoalPosition.col;
 }
 
+bool CGame::IsGameOver() const {
+
+    if (!IsInsidePlayArea(m_obstacles.PrimaryPosition()) || !IsInsidePlayArea(m_obstacles.OppositePosition())) {
+        return true;
+    }
+    return false;
+}
+
 
 void CGame::GameWon() {
 
@@ -389,7 +399,17 @@ void CGame::GameWon() {
 
     m_pRenderer->DrawScreenText(
         "YOU WIN!",
-        Vector2(300.0f, 360.0f),
-        Colors::White
-	);
+        Vector2(300.0f, 360.0f), Colors::White);
+}
+
+
+void CGame::GameOver() {
+
+    m_bGameStarted = false;
+    m_bGameWon = false;
+	m_bGameOver = true;
+
+    m_pRenderer->DrawScreenText(
+        "GAME OVER",
+        Vector2(300.0f, 360.0f), Colors::White);
 }
