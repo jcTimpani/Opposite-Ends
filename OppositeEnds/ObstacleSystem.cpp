@@ -1,103 +1,156 @@
 #include "ObstacleSystem.h"
 
-#include <cstdlib> // std::abs
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
+#include <utility>
 
 namespace {
-ObstacleSystem::Position Advance(const ObstacleSystem::Position& p, int dr, int dc) {
-    return { p.row + dr, p.col + dc };
-}
+    ObstacleSystem::Position Advance(const ObstacleSystem::Position& p, int dr, int dc) {
+        return { p.row + dr, p.col + dc };
+    }
+
+    bool Fail(std::string* error, const std::string& message) {
+        if (error) *error = message;
+        return false;
+    }
 }
 
-ObstacleSystem::ObstacleSystem() = default;
+bool ObstacleSystem::LoadFromFile(const std::string& path, std::string* error) {
+    std::ifstream file(path);
+    if (!file) return Fail(error, "Cannot open " + path);
+    std::ostringstream contents;
+    contents << file.rdbuf();
+    if (!file.good() && !file.eof()) return Fail(error, "Cannot read " + path);
+    return LoadFromText(contents.str(), error);
+}
+
+bool ObstacleSystem::LoadFromText(const std::string& text, std::string* error) {
+    std::istringstream input(text);
+    std::vector<std::string> tiles;
+    std::string line;
+    while (std::getline(input, line)) {
+        // Windows CRLF files work on other platforms, too.
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.empty()) return Fail(error, "Blank rows are not allowed");
+        if (line.size() > static_cast<std::size_t>(kGridSize))
+            return Fail(error, "Level is wider than 18 tiles");
+        if (!tiles.empty() && line.size() != tiles[0].size())
+            return Fail(error, "Every row must have the same width");
+        tiles.push_back(line);
+        if (tiles.size() > static_cast<std::size_t>(kGridSize))
+            return Fail(error, "Level is taller than 18 tiles");
+    }
+    if (tiles.empty() || tiles[0].empty()) return Fail(error, "Level is empty");
+
+    Position primary{ 0, 0 }, opposite{ 0, 0 }, primaryGoal{ 0, 0 }, oppositeGoal{ 0, 0 };
+    int redCount = 0, blueCount = 0, redGoalCount = 0, blueGoalCount = 0;
+    std::vector<Position> plates, doors, crates;
+
+    for (int row = 0; row < static_cast<int>(tiles.size()); ++row) {
+        for (int col = 0; col < static_cast<int>(tiles[row].size()); ++col) {
+            const Position pos{ row, col };
+            switch (tiles[row][col]) {
+            case 'e': case 'w': break;
+            case 'r': primary = pos; ++redCount; break;
+            case 'b': opposite = pos; ++blueCount; break;
+            case 'c': primaryGoal = pos; ++redGoalCount; break;
+            case 'h': oppositeGoal = pos; ++blueGoalCount; break;
+            case 'p': plates.push_back(pos); break;
+            case 'd': doors.push_back(pos); break;
+            case 'k': crates.push_back(pos); break;
+            default:
+                return Fail(error, "Unknown tile at row " + std::to_string(row + 1) +
+                    ", column " + std::to_string(col + 1));
+            }
+        }
+    }
+    if (redCount != 1 || blueCount != 1 || redGoalCount != 1 || blueGoalCount != 1)
+        return Fail(error, "Need exactly one r, b, c, and h in each level");
+    if (!doors.empty() && plates.empty())
+        return Fail(error, "A door needs at least one pressure plate");
+
+    // Commit atomically only after the map has been validated.
+    m_tiles = std::move(tiles);
+    m_width = static_cast<int>(m_tiles[0].size());
+    m_height = static_cast<int>(m_tiles.size());
+    m_primaryStart = primary;
+    m_oppositeStart = opposite;
+    m_primaryGoal = primaryGoal;
+    m_oppositeGoal = oppositeGoal;
+    m_plates = std::move(plates);
+    m_doors = std::move(doors);
+    m_initialCrates = std::move(crates);
+    Reset();
+    if (error) error->clear();
+    return true;
+}
 
 bool ObstacleSystem::SamePosition(const Position& a, const Position& b) {
     return a.row == b.row && a.col == b.col;
 }
 
-bool ObstacleSystem::IsWall(const Position& position) const {
-    // Orange outer border and purple walls are all solid.
-    if (position.row <= 0 || position.row >= kGridSize - 1 ||
-        position.col <= 0 || position.col >= kGridSize - 1) {
-        return true;
-    }
-
-    static const Position walls[] = {
-        { 6, 4 }, { 6, 5 }, { 6, 6 }, { 6, 7 }, { 6, 8 },
-        { 11, 10 }, { 12, 10 }, { 13, 10 }
-    };
-    for (const Position& wall : walls) {
-        if (SamePosition(position, wall)) {
-            return true;
-        }
-    }
-    return false;
+bool ObstacleSystem::InBounds(const Position& pos) const {
+    return pos.row >= 0 && pos.col >= 0 && pos.row < m_height && pos.col < m_width;
 }
 
-// Two plates control one door. One plate is accessible to the primary
-// astronaut immediately, while the other can be held down by a pushed crate.
-bool ObstacleSystem::IsPlate(const Position& position) const {
-    static const Position plates[] = { { 5, 4 }, { 4, 7 } };
-    for (const Position& plate : plates) {
-        if (SamePosition(position, plate)) {
-            return true;
-        }
-    }
-    return false;
+bool ObstacleSystem::IsWall(const Position& pos) const {
+    // Out-of-bounds is solid, so maps don't rely on a decorative border.
+    return !InBounds(pos) || m_tiles[pos.row][pos.col] == 'w';
 }
 
-bool ObstacleSystem::IsPlateOccupied(const Position& position) const {
-    return IsPlate(position) &&
-        (SamePosition(position, m_primary) ||
-         SamePosition(position, m_opposite) ||
-         IsCrate(position));
+bool ObstacleSystem::IsPlate(const Position& pos) const {
+    return InBounds(pos) && m_tiles[pos.row][pos.col] == 'p';
 }
 
-bool ObstacleSystem::IsDoor(const Position& position) const {
-    return SamePosition(position, Position{ 12, 13 });
+bool ObstacleSystem::IsDoor(const Position& pos) const {
+    return InBounds(pos) && m_tiles[pos.row][pos.col] == 'd';
+}
+
+bool ObstacleSystem::IsPlateOccupied(const Position& pos) const {
+    return IsPlate(pos) && (SamePosition(pos, m_primary) ||
+        SamePosition(pos, m_opposite) || IsCrate(pos));
 }
 
 bool ObstacleSystem::IsPlatePressed() const {
-    static const Position plates[] = { { 5, 4 }, { 4, 7 } };
-    for (const Position& plate : plates) {
-        if (IsPlateOccupied(plate)) {
-            return true;
-        }
+    for (const auto& plate : m_plates) {
+        if (IsPlateOccupied(plate)) return true;
     }
     return false;
 }
 
 bool ObstacleSystem::IsDoorOccupied() const {
-    return IsDoor(m_primary) || IsDoor(m_opposite) || IsCrate({ 12, 13 });
+    for (const auto& door : m_doors) {
+        if (SamePosition(door, m_primary) || SamePosition(door, m_opposite) || IsCrate(door))
+            return true;
+    }
+    return false;
 }
 
 bool ObstacleSystem::IsDoorOpen() const {
-    // Keep the gate open while something is inside so it never closes onto
-    // an astronaut or crate after a pressure plate is released.
     return IsPlatePressed() || IsDoorOccupied();
 }
 
-bool ObstacleSystem::IsBlocked(const Position& position) const {
-    return IsWall(position) || (IsDoor(position) && !IsDoorOpen());
+bool ObstacleSystem::IsBlocked(const Position& pos) const {
+    return IsWall(pos) || (IsDoor(pos) && !IsDoorOpen());
 }
 
-int ObstacleSystem::FindCrate(const Position& position) const {
-    for (int i = 0; i < kCrateCount; ++i) {
-        if (SamePosition(position, m_crates[i])) {
-            return i;
-        }
+int ObstacleSystem::FindCrate(const Position& pos) const {
+    for (std::size_t i = 0; i < m_crates.size(); ++i) {
+        if (SamePosition(pos, m_crates[i])) return static_cast<int>(i);
     }
     return -1;
 }
 
-bool ObstacleSystem::IsCrate(const Position& position) const {
-    return FindCrate(position) != -1;
+bool ObstacleSystem::IsCrate(const Position& pos) const { return FindCrate(pos) >= 0; }
+
+bool ObstacleSystem::IsWon() const {
+    return m_width > 0 && SamePosition(m_primary, m_primaryGoal) &&
+        SamePosition(m_opposite, m_oppositeGoal);
 }
 
 bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
-    // Reject diagonals and zero steps, even if a caller supplies them.
-    if (std::abs(rowDelta) + std::abs(colDelta) != 1) {
-        return false;
-    }
+    if (m_width == 0 || std::abs(rowDelta) + std::abs(colDelta) != 1) return false;
 
     struct MovePlan {
         bool allowed = false;
@@ -106,83 +159,55 @@ bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
         Position crateDestination{ 0, 0 };
     };
 
-    // Plan both turns from the SAME original state. Do not move either
-    // character (or a crate) until conflicts have been resolved.
+    // Both players calculate moves from the SAME pre-turn board state.
     const auto planMove = [this](Position start, int dr, int dc) {
         MovePlan plan;
         plan.destination = Advance(start, dr, dc);
-        // Use the switch state at the START of the input for both players.
-        // A plate newly pressed on this turn opens the gate on the next turn.
-        if (IsBlocked(plan.destination)) {
-            return plan;
-        }
-
+        if (IsBlocked(plan.destination)) return plan;
         plan.crateIndex = FindCrate(plan.destination);
         if (plan.crateIndex >= 0) {
             plan.crateDestination = Advance(plan.destination, dr, dc);
-            // Single-crate pushes only. A crate cannot enter a wall, another
-            // crate, or either character's occupied starting tile.
-            if (IsBlocked(plan.crateDestination) ||
-                IsCrate(plan.crateDestination) ||
+            if (IsBlocked(plan.crateDestination) || IsCrate(plan.crateDestination) ||
                 SamePosition(plan.crateDestination, m_primary) ||
-                SamePosition(plan.crateDestination, m_opposite)) {
-                return plan;
-            }
+                SamePosition(plan.crateDestination, m_opposite)) return plan;
         }
         plan.allowed = true;
         return plan;
-    };
+        };
 
     MovePlan primary = planMove(m_primary, rowDelta, colDelta);
     MovePlan opposite = planMove(m_opposite, -rowDelta, -colDelta);
 
     if (primary.allowed && opposite.allowed) {
-        // Both characters must not occupy the same square, push the same
-        // crate from opposite directions, or produce colliding crate moves.
         const bool sameCrate = primary.crateIndex >= 0 &&
             primary.crateIndex == opposite.crateIndex;
         const bool sameDestination = SamePosition(primary.destination, opposite.destination);
         const bool swappedPlaces = SamePosition(primary.destination, m_opposite) &&
             SamePosition(opposite.destination, m_primary);
         const bool crateConflict =
-            (primary.crateIndex >= 0 &&
-                SamePosition(primary.crateDestination, opposite.destination)) ||
-            (opposite.crateIndex >= 0 &&
-                SamePosition(opposite.crateDestination, primary.destination)) ||
+            (primary.crateIndex >= 0 && SamePosition(primary.crateDestination, opposite.destination)) ||
+            (opposite.crateIndex >= 0 && SamePosition(opposite.crateDestination, primary.destination)) ||
             (primary.crateIndex >= 0 && opposite.crateIndex >= 0 &&
                 SamePosition(primary.crateDestination, opposite.crateDestination));
-
         if (sameCrate || sameDestination || swappedPlaces || crateConflict) {
             primary.allowed = false;
             opposite.allowed = false;
         }
     }
 
-    // A character also cannot walk into a character that is stuck.
-    if (primary.allowed && !opposite.allowed &&
-        SamePosition(primary.destination, m_opposite)) {
+    if (primary.allowed && !opposite.allowed && SamePosition(primary.destination, m_opposite))
         primary.allowed = false;
-    }
-    if (opposite.allowed && !primary.allowed &&
-        SamePosition(opposite.destination, m_primary)) {
+    if (opposite.allowed && !primary.allowed && SamePosition(opposite.destination, m_primary))
         opposite.allowed = false;
-    }
-
-    if (!primary.allowed && !opposite.allowed) {
-        return false;
-    }
+    if (!primary.allowed && !opposite.allowed) return false;
 
     m_history.push_back({ m_primary, m_opposite, m_crates });
     if (primary.allowed) {
-        if (primary.crateIndex >= 0) {
-            m_crates[primary.crateIndex] = primary.crateDestination;
-        }
+        if (primary.crateIndex >= 0) m_crates[primary.crateIndex] = primary.crateDestination;
         m_primary = primary.destination;
     }
     if (opposite.allowed) {
-        if (opposite.crateIndex >= 0) {
-            m_crates[opposite.crateIndex] = opposite.crateDestination;
-        }
+        if (opposite.crateIndex >= 0) m_crates[opposite.crateIndex] = opposite.crateDestination;
         m_opposite = opposite.destination;
     }
     ++m_moveCount;
@@ -190,9 +215,7 @@ bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
 }
 
 bool ObstacleSystem::Undo() {
-    if (m_history.empty()) {
-        return false;
-    }
+    if (m_history.empty()) return false;
     const Snapshot previous = m_history.back();
     m_history.pop_back();
     m_primary = previous.primary;
@@ -203,9 +226,9 @@ bool ObstacleSystem::Undo() {
 }
 
 void ObstacleSystem::Reset() {
-    m_primary = { 4, 4 };
-    m_opposite = { 13, 13 };
-    m_crates = {{ { 4, 6 }, { 13, 12 }, { 9, 9 } }};
+    m_primary = m_primaryStart;
+    m_opposite = m_oppositeStart;
+    m_crates = m_initialCrates;
     m_history.clear();
     m_moveCount = 0;
 }

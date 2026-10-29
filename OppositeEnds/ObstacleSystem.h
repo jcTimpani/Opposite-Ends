@@ -1,8 +1,8 @@
 #pragma once
 
-// Pure C++ puzzle rules: no renderer, Windows headers, or game-engine dependencies.
-// This makes the obstacle mechanics testable on Windows, macOS, and Linux.
-#include <array>
+// Engine-independent board, level parsing, movement and undo logic.
+#include <cstddef>
+#include <string>
 #include <vector>
 
 class ObstacleSystem {
@@ -12,12 +12,14 @@ public:
         int col;
     };
 
-    static constexpr int kGridSize = 18;
+    static constexpr int kGridSize = 18; // Maximum dimensions at 40 pixels/tile.
 
-    ObstacleSystem();
+    ObstacleSystem() = default;
 
-    // One input moves both astronauts in opposite directions.
-    // Returns true if at least one astronaut actually moved.
+    // Parses a rectangular text map; on failure, keeps the previous level intact.
+    bool LoadFromFile(const std::string& path, std::string* error = nullptr);
+    bool LoadFromText(const std::string& text, std::string* error = nullptr);
+
     bool TryMove(int rowDelta, int colDelta);
     bool Undo();
     void Reset();
@@ -27,29 +29,46 @@ public:
     bool IsPlate(const Position& position) const;
     bool IsPlateOccupied(const Position& position) const;
     bool IsDoor(const Position& position) const;
+    bool HasDoor() const { return !m_doors.empty(); }
     bool IsPlatePressed() const;
     bool IsDoorOpen() const;
+    bool IsWon() const;
 
     Position PrimaryPosition() const { return m_primary; }
     Position OppositePosition() const { return m_opposite; }
+    Position PrimaryGoal() const { return m_primaryGoal; }
+    Position OppositeGoal() const { return m_oppositeGoal; }
+    int Width() const { return m_width; }
+    int Height() const { return m_height; }
     int MoveCount() const { return m_moveCount; }
+    std::size_t CrateCount() const { return m_crates.size(); }
 
 private:
-    static constexpr int kCrateCount = 3;
-    using Crates = std::array<Position, kCrateCount>;
-
+    using Crates = std::vector<Position>;
     struct Snapshot {
         Position primary;
         Position opposite;
         Crates crates;
     };
 
-    Position m_primary{ 4, 4 };
-    Position m_opposite{ 13, 13 };
-    Crates m_crates{{ { 4, 6 }, { 13, 12 }, { 9, 9 } }};
+    int m_width = 0;
+    int m_height = 0;
+    std::vector<std::string> m_tiles;
+    std::vector<Position> m_plates;
+    std::vector<Position> m_doors;
+    Position m_primaryStart{ 0, 0 };
+    Position m_oppositeStart{ 0, 0 };
+    Position m_primaryGoal{ 0, 0 };
+    Position m_oppositeGoal{ 0, 0 };
+    Crates m_initialCrates;
+
+    Position m_primary{ 0, 0 };
+    Position m_opposite{ 0, 0 };
+    Crates m_crates;
     std::vector<Snapshot> m_history;
     int m_moveCount = 0;
 
+    bool InBounds(const Position& position) const;
     bool IsBlocked(const Position& position) const;
     bool IsDoorOccupied() const;
     int FindCrate(const Position& position) const;
