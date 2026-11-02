@@ -14,7 +14,6 @@ private:
 
     bool m_bGameStarted = false;
 	bool m_bGameWon = false;
-	bool m_bGameOver = false;
 
     static constexpr int SCREEN_WIDTH = 720;
     static constexpr int SCREEN_HEIGHT = 720;
@@ -49,7 +48,7 @@ private:
     GridPosition m_primaryGoalPosition{ 13, 13 };
 	GridPosition m_oppositeGoalPosition{ 4, 4 };
 
-	// used to check if level has a shared goal or not, if true, both characters will have the same goal position
+	// used tocheck if level has a shared goal or not, if true, both characters will have the same goal position
 	bool m_sharedGoal = false;
 
     void DrawGameGrid();
@@ -69,9 +68,7 @@ private:
     void TryMove(int rowDelta, int colDelta);
     bool IsInsidePlayArea(const GridPosition& position) const;
 	bool IsGameWon() const;
-	bool IsGameOver() const;
 	void GameWon();
-    void GameOver();
 
     void RenderFrame();
     void DrawStartScreen();
@@ -84,5 +81,4 @@ public:
     void Initialize();
     void ProcessFrame();
     void Release();
-	void LevelReader(const std::string& levelFilePath); // Read level data from a file and set up the game. incomplete, needs to be implemented
 };
