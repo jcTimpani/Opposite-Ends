@@ -54,16 +54,16 @@ int main() {
     assert(game.MoveCount() == 0);
     assert(!game.Undo());
 
-    // Wall holds primary still; mirrored astronaut continues independently.
+    // Wall holds primary still; plate opens the gate for opposite on turn 2.
     assert(game.TryMove(1, 0));
     assert(game.TryMove(1, 0));
     assert(IsAt(game.PrimaryPosition(), 5, 4));
-    assert(IsAt(game.OppositePosition(), 11, 13));
+    assert(IsAt(game.OppositePosition(), 12, 13));
 
     // Undo the partial movement and reset again.
     assert(game.Undo());
     assert(IsAt(game.PrimaryPosition(), 5, 4));
-    assert(IsAt(game.OppositePosition(), 12, 13));
+    assert(IsAt(game.OppositePosition(), 13, 13));
     game.Reset();
 
     // Repeated pushes eventually stop at the solid outer boundary.
@@ -74,6 +74,70 @@ int main() {
     assert(game.IsCrate({ 4, 16 }));
     assert(!game.TryMove(0, 1));
 
+    // Stage 3: the door is initially closed, so the first downward input
+    // blocks the opposite astronaut while primary steps on the first plate.
+    game.Reset();
+    assert(game.IsDoor({ 12, 13 }));
+    assert(game.IsPlate({ 5, 4 }));
+    assert(game.IsPlate({ 4, 7 }));
+    assert(!game.IsDoorOpen());
+    assert(!game.IsPlatePressed());
+    assert(game.TryMove(1, 0));
+    assert(IsAt(game.PrimaryPosition(), 5, 4));
+    assert(IsAt(game.OppositePosition(), 13, 13));
+    assert(game.IsPlatePressed());
+    assert(game.IsPlateOccupied({ 5, 4 }));
+    assert(!game.IsPlateOccupied({ 4, 7 }));
+    assert(game.IsDoorOpen());
+    assert(game.MoveCount() == 1);
+
+    // On the NEXT input the already-open gate allows the opposite player
+    // through while the primary player is held still by the purple wall.
+    assert(game.TryMove(1, 0));
+    assert(IsAt(game.PrimaryPosition(), 5, 4));
+    assert(IsAt(game.OppositePosition(), 12, 13));
+    assert(game.IsDoorOpen());
+    assert(game.MoveCount() == 2);
+
+    // Undo restores gate state implicitly from restored board positions.
+    assert(game.Undo());
+    assert(IsAt(game.OppositePosition(), 13, 13));
+    assert(game.IsDoorOpen());
+    assert(game.Undo());
+    assert(IsAt(game.PrimaryPosition(), 4, 4));
+    assert(!game.IsPlatePressed());
+    assert(!game.IsDoorOpen());
+    assert(game.MoveCount() == 0);
+
+    // A crate can latch a plate even when neither astronaut stands on it.
+    game.Reset();
+    assert(game.TryMove(0, 1));
+    assert(game.TryMove(0, 1));
+    assert(game.IsCrate({ 4, 7 }));
+    assert(game.IsDoorOpen());
+    assert(game.IsPlatePressed());
+    assert(game.IsPlateOccupied({ 4, 7 }));
+    // Pushing the crate off the plate does not close the gate if the
+    // astronaut moves onto that same plate in the same turn.
+    assert(game.TryMove(0, 1));
+    assert(game.IsCrate({ 4, 8 }));
+    assert(game.IsPlateOccupied({ 4, 7 }));
+    assert(game.IsDoorOpen());
+    // The following push finally clears the plate, closing the gate.
+    assert(game.TryMove(0, 1));
+    assert(game.IsCrate({ 4, 9 }));
+    assert(!game.IsPlateOccupied({ 4, 7 }));
+    assert(!game.IsDoorOpen());
+    assert(!game.IsPlatePressed());
+    assert(game.Undo());
+    assert(game.IsCrate({ 4, 8 }));
+    assert(game.IsDoorOpen());
+    assert(game.Undo());
+    assert(game.IsCrate({ 4, 7 }));
+    assert(game.IsDoorOpen());
+    game.Reset();
+    assert(!game.IsDoorOpen());
+
     // Repeated turns must never leave a player inside a wall or crate.
     game.Reset();
     for (int turn = 0; turn < 5000; ++turn) {
@@ -83,6 +147,8 @@ int main() {
         game.TryMove(dr, dc);
         assert(!game.IsWall(game.PrimaryPosition()));
         assert(!game.IsWall(game.OppositePosition()));
+        assert(!game.IsDoor(game.PrimaryPosition()) || game.IsDoorOpen());
+        assert(!game.IsDoor(game.OppositePosition()) || game.IsDoorOpen());
         assert(!game.IsCrate(game.PrimaryPosition()));
         assert(!game.IsCrate(game.OppositePosition()));
         assert(!IsAt(game.PrimaryPosition(), game.OppositePosition().row,
@@ -99,5 +165,5 @@ int main() {
         assert(crates == 3);
     }
 
-    std::cout << "All obstacle, crate, undo, reset, and wall tests passed.\n";
+    std::cout << "All wall, crate, pressure plate, gate, undo, and reset tests passed.\n";
 }

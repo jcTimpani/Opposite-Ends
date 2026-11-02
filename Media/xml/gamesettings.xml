@@ -38,6 +38,7 @@
 		<sprite name="shared_goal" file="shared_goal.png"/>
 <sprite name="wall" file="wall.png"/>
 <sprite name="crate" file="crate.png"/>
+<sprite name="flash_overlay" file="flash_overlay.png"/>
 </sprites>
 
 </settings>

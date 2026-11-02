@@ -1,0 +1,11 @@
+| Symbol | Meaning |
+|---|---|
+| `e` | Empty floor |
+| `w` | Impassable wall |
+| `r` | Red (primary) astronaut start |
+| `b` | Blue (opposite) astronaut start |
+| `c` | Red astronaut goal |
+| `h` | Blue astronaut goal |
+| `p` | Pressure plate (opens every door when occupied by either astronaut or a crate) |
+| `d` | Powered door/gate (closed unless any plate is pressed, or occupied) |
+| `k` | Pushable crate |
