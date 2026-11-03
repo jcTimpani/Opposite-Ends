@@ -27,11 +27,12 @@ public:
 	bool IsTile(const Position& position) const;
 	bool IsEmpty(const Position& position) const;
     bool IsWall(const Position& position) const;
-	// added to make sure a tile is drawn under the characters and goals
+	// added to make sure a tile is drawn under the characters, goals and crates
 	bool IsPrimaryGoal(const Position& position) const;
 	bool IsOppositeGoal(const Position& position) const;
     bool IsPrimaryStart(const Position& position) const;
 	bool IsOppositeStart(const Position& position) const;
+	bool IsCrateStart(const Position& position) const;
     bool IsCrate(const Position& position) const;
     bool IsPlate(const Position& position) const;
     bool IsPlateOccupied(const Position& position) const;

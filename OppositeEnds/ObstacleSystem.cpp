@@ -124,6 +124,13 @@ bool ObstacleSystem::IsOppositeStart(const Position& pos) const {
     return SamePosition(pos, m_oppositeStart);
 }
 
+bool ObstacleSystem::IsCrateStart(const Position& pos) const {
+    for (const auto& crate : m_initialCrates) {
+        if (SamePosition(pos, crate)) return true;
+    }
+    return false;
+}
+
 bool ObstacleSystem::IsPlate(const Position& pos) const {
     return InBounds(pos) && m_tiles[pos.row][pos.col] == 'p';
 }
@@ -200,6 +207,11 @@ bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
             if (IsBlocked(plan.crateDestination) || IsCrate(plan.crateDestination) ||
                 SamePosition(plan.crateDestination, m_primary) ||
                 SamePosition(plan.crateDestination, m_opposite)) return plan;
+			// If the crate is being pushed off the board or into an empty space, the move is not allowed.
+            if (IsEmpty(plan.crateDestination) || !InBounds(plan.crateDestination)) {
+                plan.allowed = false;
+                return plan;
+            }
         }
         plan.allowed = true;
         return plan;
