@@ -51,6 +51,7 @@ void CGame::LoadImages() {
     m_pRenderer->Load(eSprite::PlayButton, "play");
     m_pRenderer->Load(eSprite::Tile, "tile");
     m_pRenderer->Load(eSprite::Wall, "wall");
+	m_pRenderer->Load(eSprite::Ice, "ice");
     m_pRenderer->Load(eSprite::Crate, "crate");
     m_pRenderer->Load(eSprite::Background, "background");
     m_pRenderer->Load(eSprite::PrimaryCharaDown, "astronaut_a_down");
@@ -304,6 +305,9 @@ void CGame::DrawGameGrid() {
                     ? XMFLOAT4(0.15f, 0.85f, 0.24f, 1.0f)
                     : XMFLOAT4(0.97f, 0.70f, 0.13f, 1.0f));
             }
+            else if (m_obstacles.IsIceTile(pos)) {
+                DrawTile(row, col, XMFLOAT4(0.5f, 0.8f, 1.0f, 1.0f), eSprite::Ice);
+			}
 			// make sure to draw the tiles under goals and start positions
             else if (m_obstacles.IsTile(pos) || m_obstacles.IsPrimaryGoal(pos) || m_obstacles.IsOppositeGoal(pos) || m_obstacles.IsPrimaryStart(pos) || m_obstacles.IsOppositeStart(pos) || m_obstacles.IsCrateStart(pos)) {
                 DrawTile(row, col, (row + col) % 2 == 0 ? gray : lightGray);

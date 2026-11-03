@@ -61,6 +61,7 @@ bool ObstacleSystem::LoadFromText(const std::string& text, std::string* error) {
             case 'd': doors.push_back(pos); break;
             case 'k': crates.push_back(pos); break;
 			case '-': break; // empty space, not a tile
+            case 'i': break; // ice tile
             default:
                 return Fail(error, "Unknown tile at row " + std::to_string(row + 1) +
                     ", column " + std::to_string(col + 1));
@@ -106,6 +107,10 @@ bool ObstacleSystem::IsEmpty(const Position& pos) const {
 
 bool ObstacleSystem::IsWall(const Position& pos) const {
     return m_tiles[pos.row][pos.col] == 'w';
+}
+
+bool ObstacleSystem::IsIceTile(const Position& pos) const {
+    return InBounds(pos) && m_tiles[pos.row][pos.col] == 'i';
 }
 
 bool ObstacleSystem::IsPrimaryGoal(const Position& pos) const {
@@ -201,6 +206,26 @@ bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
         MovePlan plan;
         plan.destination = Advance(start, dr, dc);
         if (IsBlocked(plan.destination)) return plan;
+		// If character is moving on an ice tile, it will slide until it hits a wall, door, crate, or another character.
+		// If the character is sliding into a crate, the crate will be pushed in the same direction.
+		// characters can stay on ice tiles if there is a wall, door, or another character in the direction of movement.
+        if (IsIceTile(plan.destination)) {
+            Position icePos = plan.destination;
+            while (true) {
+                Position nextPos = Advance(icePos, dr, dc);
+                if (IsBlocked(nextPos) ||
+                    SamePosition(nextPos, m_primary) ||
+                    SamePosition(nextPos, m_opposite)) {
+                    break;
+                }
+                if (!IsIceTile(nextPos)) {
+					icePos = nextPos;
+					break;
+                }
+                icePos = nextPos;
+            }
+            plan.destination = icePos;
+		}
         plan.crateIndex = FindCrate(plan.destination);
         if (plan.crateIndex >= 0) {
             plan.crateDestination = Advance(plan.destination, dr, dc);
@@ -212,6 +237,24 @@ bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
                 plan.allowed = false;
                 return plan;
             }
+			// If the crate is being pushed onto an ice tile, it will slide until it hits a wall, door, another crate, or a character.
+            if (IsIceTile(plan.crateDestination)) {
+                Position icePos = plan.crateDestination;
+                while (IsIceTile(icePos)) {
+                    icePos = Advance(icePos, dr, dc);
+                    if (IsBlocked(icePos) || IsCrate(icePos) ||
+                        SamePosition(icePos, m_primary) ||
+                        SamePosition(icePos, m_opposite)) {
+                        plan.allowed = false;
+                        return plan;
+                    }
+                    if (IsEmpty(icePos) || !InBounds(icePos)) {
+                        plan.allowed = false;
+                        return plan;
+                    }
+                }
+                plan.crateDestination = icePos;
+			}
         }
         plan.allowed = true;
         return plan;

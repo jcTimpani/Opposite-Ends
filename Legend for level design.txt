@@ -10,3 +10,4 @@
 | `d` | Powered door/gate (closed unless any plate is pressed, or occupied) |
 | `k` | Pushable crate |
 | '-' | Empty space |
+| 'i' | Ice tile |
