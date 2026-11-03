@@ -95,8 +95,7 @@ bool ObstacleSystem::InBounds(const Position& pos) const {
 }
 
 bool ObstacleSystem::IsWall(const Position& pos) const {
-    // Out-of-bounds is solid, so maps don't rely on a decorative border.
-    return !InBounds(pos) || m_tiles[pos.row][pos.col] == 'w';
+    return m_tiles[pos.row][pos.col] == 'w';
 }
 
 bool ObstacleSystem::IsPlate(const Position& pos) const {
@@ -132,6 +131,7 @@ bool ObstacleSystem::IsDoorOpen() const {
 }
 
 bool ObstacleSystem::IsBlocked(const Position& pos) const {
+	if (!InBounds(pos)) return false;
     return IsWall(pos) || (IsDoor(pos) && !IsDoorOpen());
 }
 
@@ -147,6 +147,10 @@ bool ObstacleSystem::IsCrate(const Position& pos) const { return FindCrate(pos) 
 bool ObstacleSystem::IsWon() const {
     return m_width > 0 && SamePosition(m_primary, m_primaryGoal) &&
         SamePosition(m_opposite, m_oppositeGoal);
+}
+
+bool ObstacleSystem::IsLost() const {
+    return !InBounds(m_primary) || !InBounds(m_opposite);
 }
 
 bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {

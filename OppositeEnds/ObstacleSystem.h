@@ -33,6 +33,7 @@ public:
     bool IsPlatePressed() const;
     bool IsDoorOpen() const;
     bool IsWon() const;
+	bool IsLost() const;
 
     Position PrimaryPosition() const { return m_primary; }
     Position OppositePosition() const { return m_opposite; }

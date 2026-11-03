@@ -19,6 +19,5 @@ enum class eSprite : UINT {
 	PrimaryGoal,
 	OppositeGoal,
 	SharedGoal,
-    FlashOverlay,
     Size
 };
