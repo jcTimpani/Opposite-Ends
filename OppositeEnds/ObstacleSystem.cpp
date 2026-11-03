@@ -51,7 +51,8 @@ bool ObstacleSystem::LoadFromText(const std::string& text, std::string* error) {
         for (int col = 0; col < static_cast<int>(tiles[row].size()); ++col) {
             const Position pos{ row, col };
             switch (tiles[row][col]) {
-            case 'e': case 'w': break;
+            // '.' is a tile
+            case '.': case 'w': break;
             case 'r': primary = pos; ++redCount; break;
             case 'b': opposite = pos; ++blueCount; break;
             case 'c': primaryGoal = pos; ++redGoalCount; break;
@@ -59,6 +60,7 @@ bool ObstacleSystem::LoadFromText(const std::string& text, std::string* error) {
             case 'p': plates.push_back(pos); break;
             case 'd': doors.push_back(pos); break;
             case 'k': crates.push_back(pos); break;
+			case '-': break; // empty space, not a tile
             default:
                 return Fail(error, "Unknown tile at row " + std::to_string(row + 1) +
                     ", column " + std::to_string(col + 1));
@@ -94,8 +96,32 @@ bool ObstacleSystem::InBounds(const Position& pos) const {
     return pos.row >= 0 && pos.col >= 0 && pos.row < m_height && pos.col < m_width;
 }
 
+bool ObstacleSystem::IsTile(const Position& pos) const {
+    return InBounds(pos) && (m_tiles[pos.row][pos.col] == '.' || IsPrimaryGoal(pos) || IsOppositeGoal(pos) || IsPrimaryStart(pos) || IsOppositeStart(pos));
+}
+
+bool ObstacleSystem::IsEmpty(const Position& pos) const {
+	return InBounds(pos) && m_tiles[pos.row][pos.col] == '-';
+}
+
 bool ObstacleSystem::IsWall(const Position& pos) const {
     return m_tiles[pos.row][pos.col] == 'w';
+}
+
+bool ObstacleSystem::IsPrimaryGoal(const Position& pos) const {
+    return SamePosition(pos, m_primaryGoal);
+}
+
+bool ObstacleSystem::IsOppositeGoal(const Position& pos) const {
+    return SamePosition(pos, m_oppositeGoal);
+}
+
+bool ObstacleSystem::IsPrimaryStart(const Position& pos) const {
+    return SamePosition(pos, m_primaryStart);
+}
+
+bool ObstacleSystem::IsOppositeStart(const Position& pos) const {
+    return SamePosition(pos, m_oppositeStart);
 }
 
 bool ObstacleSystem::IsPlate(const Position& pos) const {
@@ -150,7 +176,7 @@ bool ObstacleSystem::IsWon() const {
 }
 
 bool ObstacleSystem::IsLost() const {
-    return !InBounds(m_primary) || !InBounds(m_opposite);
+    return !InBounds(m_primary) || !InBounds(m_opposite) || IsEmpty(m_primary) || IsEmpty(m_opposite);
 }
 
 bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
