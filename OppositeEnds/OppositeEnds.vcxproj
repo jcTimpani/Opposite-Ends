@@ -135,11 +135,13 @@ $(DIRECTXTK12_DIR)\Bin\Desktop_2022_Win10\x64\$(Configuration);
   <ItemGroup>
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="ObstacleSystem.cpp" />
+    <ClCompile Include="PuzzleSolver.cpp" />
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Game.h" />
     <ClInclude Include="ObstacleSystem.h" />
+    <ClInclude Include="PuzzleSolver.h" />
     <ClInclude Include="GameDefines.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
