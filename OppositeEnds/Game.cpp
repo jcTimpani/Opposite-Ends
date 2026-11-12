@@ -32,6 +32,7 @@ bool CGame::LoadLevel(int number) {
             m_levelError.clear();
             m_allLevelsComplete = false;
             m_bGameWon = false;
+			m_bGameLost = false;
             m_bGameStarted = true;
             m_primarySprite = eSprite::PrimaryCharaDown;
             m_oppositeSprite = eSprite::OppositeCharaDown;
@@ -50,6 +51,7 @@ void CGame::LoadImages() {
     m_pRenderer->Load(eSprite::PlayButton, "play");
     m_pRenderer->Load(eSprite::Tile, "tile");
     m_pRenderer->Load(eSprite::Wall, "wall");
+	m_pRenderer->Load(eSprite::Ice, "ice");
     m_pRenderer->Load(eSprite::Crate, "crate");
     m_pRenderer->Load(eSprite::Background, "background");
     m_pRenderer->Load(eSprite::PrimaryCharaDown, "astronaut_a_down");
@@ -63,7 +65,6 @@ void CGame::LoadImages() {
     m_pRenderer->Load(eSprite::PrimaryGoal, "primary_goal");
     m_pRenderer->Load(eSprite::OppositeGoal, "opposite_goal");
     m_pRenderer->Load(eSprite::SharedGoal, "shared_goal");
-    m_pRenderer->Load(eSprite::FlashOverlay, "flash_overlay");
     m_pRenderer->EndResourceUpload();
 }
 
@@ -100,13 +101,21 @@ void CGame::KeyboardHandler() {
         return;
     }
 
+    if (m_bGameLost) {
+        if (m_pKeyboard->TriggerDown('R')) {
+            m_obstacles.Reset();
+            m_bGameLost = false;
+            m_bGameStarted = true;
+            m_facingHistory.clear();
+            m_primarySprite = eSprite::PrimaryCharaDown;
+            m_oppositeSprite = eSprite::OppositeCharaDown;
+        }
+        return;
+	}
+
     if (!m_bGameStarted) {
         if ((m_pKeyboard->TriggerDown(VK_LBUTTON) && MouseOverPlayButton()) ||
             m_pKeyboard->TriggerDown(VK_RETURN)) m_bGameStarted = true;
-        return;
-    }
-    // Freeze controls during the red flash.
-    if (std::chrono::steady_clock::now() < m_edgeFlashUntil) {
         return;
     }
     if (m_pKeyboard->TriggerDown('R')) {
@@ -189,14 +198,7 @@ void CGame::TryMove(int dr, int dc) {
         return onBorder && m_obstacles.IsWall(pos);
         };
 
-    // If EITHER character hits the edge,
-    // cancel the entire move and trigger the flash.
-    if (hitsEdge(redNext) || hitsEdge(blueNext)) {
-        m_edgeFlashUntil = now + std::chrono::seconds(1);
-        return;
-    }
-
-    // Otherwise, use the existing movement system.
+    // use the existing movement system.
     if (m_obstacles.TryMove(dr, dc)) {
         m_facingHistory.emplace_back(
             m_primarySprite,
@@ -303,7 +305,11 @@ void CGame::DrawGameGrid() {
                     ? XMFLOAT4(0.15f, 0.85f, 0.24f, 1.0f)
                     : XMFLOAT4(0.97f, 0.70f, 0.13f, 1.0f));
             }
-            else {
+            else if (m_obstacles.IsIceTile(pos)) {
+                DrawTile(row, col, XMFLOAT4(0.5f, 0.8f, 1.0f, 1.0f), eSprite::Ice);
+			}
+			// make sure to draw the tiles under goals and start positions
+            else if (m_obstacles.IsTile(pos) || m_obstacles.IsPrimaryGoal(pos) || m_obstacles.IsOppositeGoal(pos) || m_obstacles.IsPrimaryStart(pos) || m_obstacles.IsOppositeStart(pos) || m_obstacles.IsCrateStart(pos)) {
                 DrawTile(row, col, (row + col) % 2 == 0 ? gray : lightGray);
             }
         }
@@ -338,53 +344,37 @@ void CGame::RenderFrame() {
                     "LEVEL COMPLETE! ENTER: NEXT");
             m_pRenderer->DrawScreenText(message, Vector2(130, 355), Colors::White);
         }
-    }
-    // Transparent red screen flash
-    const auto now = std::chrono::steady_clock::now();
-
-    if (m_bGameStarted && now < m_edgeFlashUntil) {
-        LSpriteDesc2D flash;
-
-        flash.m_nSpriteIndex =
-            static_cast<UINT>(eSprite::FlashOverlay);
-
-        flash.m_vPos = Vector2(
-            SCREEN_WIDTH / 2.0f,
-            SCREEN_HEIGHT / 2.0f
-        );
-
-        // Cover the entire screen
-        flash.m_fXScale =
-            static_cast<float>(SCREEN_WIDTH) /
-            m_pRenderer->GetWidth(eSprite::FlashOverlay);
-
-        flash.m_fYScale =
-            static_cast<float>(SCREEN_HEIGHT) /
-            m_pRenderer->GetHeight(eSprite::FlashOverlay);
-
-        // Red tint
-        flash.m_f4Tint = XMFLOAT4(
-            1.0f,
-            0.0f,
-            0.0f,
-            1.0f
-        );
-
-        // 25% opacity
-        flash.m_fAlpha = 0.25f;
-        m_pRenderer->Draw(&flash);
+        if (isGameLost()) {
+            m_pRenderer->DrawScreenText("GAME LOST! R: RESET", Vector2(130, 355), Colors::White);
+		}
     }
     m_pRenderer->EndFrame();
 }
 
 void CGame::ProcessFrame() {
     KeyboardHandler();
-    if (m_bGameStarted && !m_bGameWon && IsGameWon()) GameWon();
+    if (m_bGameStarted && !m_bGameWon && IsGameWon()) {
+        GameWon();
+    }
+    else if (m_bGameStarted && !m_bGameLost && isGameLost()) {
+        GameLost();
+    }
     RenderFrame();
 }
 
 bool CGame::IsGameWon() const { return m_obstacles.IsWon(); }
-void CGame::GameWon() { m_bGameStarted = false; m_bGameWon = true; }
+
+void CGame::GameWon() { 
+    m_bGameWon = true;
+	m_bGameLost = false;
+}
+
+bool CGame::isGameLost() const { return m_obstacles.IsLost(); }
+
+void CGame::GameLost() {
+    m_bGameLost = true;
+    m_bGameWon = false;
+}
 
 void CGame::Release() {
     delete m_pRenderer;

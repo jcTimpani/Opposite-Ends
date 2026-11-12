@@ -1,6 +1,6 @@
 | Symbol | Meaning |
 |---|---|
-| `e` | Empty floor |
+| `.` | Simple tile |
 | `w` | Impassable wall |
 | `r` | Red (primary) astronaut start |
 | `b` | Blue (opposite) astronaut start |
@@ -9,3 +9,5 @@
 | `p` | Pressure plate (opens every door when occupied by either astronaut or a crate) |
 | `d` | Powered door/gate (closed unless any plate is pressed, or occupied) |
 | `k` | Pushable crate |
+| '-' | Empty space |
+| 'i' | Ice tile |
