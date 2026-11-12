@@ -65,6 +65,14 @@ void CGame::LoadImages() {
     m_pRenderer->Load(eSprite::PrimaryGoal, "primary_goal");
     m_pRenderer->Load(eSprite::OppositeGoal, "opposite_goal");
     m_pRenderer->Load(eSprite::SharedGoal, "shared_goal");
+	m_pRenderer->Load(eSprite::PrimaryPortal, "primary_portal");
+	m_pRenderer->Load(eSprite::OppositePortal, "opposite_portal");
+	m_pRenderer->Load(eSprite::CratePortal, "crate_portal");
+    m_pRenderer->Load(eSprite::PrimaryPortalDestination, "primary_portal_destination");
+    m_pRenderer->Load(eSprite::OppositePortalDestination, "opposite_portal_destination");
+    m_pRenderer->Load(eSprite::CratePortalDestination, "crate_portal_destination");
+	m_pRenderer->Load(eSprite::SharedPortal, "shared_portal");
+	m_pRenderer->Load(eSprite::SharedPortalDestination, "shared_portal_destination");
     m_pRenderer->EndResourceUpload();
 }
 
@@ -306,7 +314,31 @@ void CGame::DrawGameGrid() {
                     : XMFLOAT4(0.97f, 0.70f, 0.13f, 1.0f));
             }
             else if (m_obstacles.IsIceTile(pos)) {
-                DrawTile(row, col, XMFLOAT4(0.5f, 0.8f, 1.0f, 1.0f), eSprite::Ice);
+                DrawTile(row, col, XMFLOAT4(1,1,1,1), eSprite::Ice);
+			}
+            else if (m_obstacles.IsPrimaryPortal(pos)) {
+                DrawTile(row, col, XMFLOAT4(1, 1, 1, 1), eSprite::PrimaryPortal);
+            }
+            else if (m_obstacles.IsOppositePortal(pos)) {
+                DrawTile(row, col, XMFLOAT4(1, 1, 1, 1), eSprite::OppositePortal);
+            }
+            else if (m_obstacles.IsCratePortal(pos)) {
+                DrawTile(row, col, XMFLOAT4(1, 1, 1, 1), eSprite::CratePortal);
+			}
+            else if (m_obstacles.IsPrimaryPortalDestination(pos)) {
+                DrawTile(row, col, XMFLOAT4(1, 1, 1, 1), eSprite::PrimaryPortalDestination);
+            }
+            else if (m_obstacles.IsOppositePortalDestination(pos)) {
+                DrawTile(row, col, XMFLOAT4(1, 1, 1, 1), eSprite::OppositePortalDestination);
+            }
+            else if (m_obstacles.IsCratePortalDestination(pos)) {
+                DrawTile(row, col, XMFLOAT4(1, 1, 1, 1), eSprite::CratePortalDestination);
+            }
+            else if (m_obstacles.IsSharedPortal(pos)) {
+                DrawTile(row, col, XMFLOAT4(1, 1, 1, 1), eSprite::SharedPortal);
+            }
+            else if (m_obstacles.IsSharedPortalDestination(pos)) {
+                DrawTile(row, col, XMFLOAT4(1, 1, 1, 1), eSprite::SharedPortalDestination);
 			}
 			// make sure to draw the tiles under goals and start positions
             else if (m_obstacles.IsTile(pos) || m_obstacles.IsPrimaryGoal(pos) || m_obstacles.IsOppositeGoal(pos) || m_obstacles.IsPrimaryStart(pos) || m_obstacles.IsOppositeStart(pos) || m_obstacles.IsCrateStart(pos)) {

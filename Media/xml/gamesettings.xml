@@ -36,6 +36,14 @@
         <sprite name="primary_goal" file="primary_goal.png"/>
         <sprite name="opposite_goal" file="opposite_goal.png"/>
 		<sprite name="shared_goal" file="shared_goal.png"/>
+		<sprite name="primary_portal" file="primary_portal.png"/>
+		<sprite name="opposite_portal" file="opposite_portal.png"/>
+		<sprite name="crate_portal" file="crate_portal.png"/>
+		<sprite name="primary_portal_destination" file="primary_portal_destination.png"/>
+		<sprite name="opposite_portal_destination" file="opposite_portal_destination.png"/>
+		<sprite name="crate_portal_destination" file="crate_portal_destination.png"/>
+		<sprite name="shared_portal" file="shared_portal.png"/>
+		<sprite name="shared_portal_destination" file="shared_portal_destination.png"/>
 <sprite name="wall" file="wall.png"/>
 <sprite name="crate" file="crate.png"/>
 <sprite name="ice" file="ice_tile.png"/>

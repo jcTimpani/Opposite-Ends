@@ -62,6 +62,14 @@ bool ObstacleSystem::LoadFromText(const std::string& text, std::string* error) {
             case 'k': crates.push_back(pos); break;
 			case '-': break; // empty space, not a tile
             case 'i': break; // ice tile
+            case '1': break; // primary portal
+            case '2': break; // opposite portal
+            case '3': break; // crate portal
+			case '4': break; // primary portal destination
+			case '5': break; // opposite portal destination
+			case '6': break; // crate portal destination
+            case '7': break; // shared portal
+            case '8': break; // shared portal destination
             default:
                 return Fail(error, "Unknown tile at row " + std::to_string(row + 1) +
                     ", column " + std::to_string(col + 1));
@@ -111,6 +119,38 @@ bool ObstacleSystem::IsWall(const Position& pos) const {
 
 bool ObstacleSystem::IsIceTile(const Position& pos) const {
     return InBounds(pos) && m_tiles[pos.row][pos.col] == 'i';
+}
+
+bool ObstacleSystem::IsPrimaryPortal(const Position& pos) const {
+    return InBounds(pos) && m_tiles[pos.row][pos.col] == '1';
+}
+
+bool ObstacleSystem::IsOppositePortal(const Position& pos) const {
+    return InBounds(pos) && m_tiles[pos.row][pos.col] == '2';
+}
+
+bool ObstacleSystem::IsPrimaryPortalDestination(const Position& pos) const {
+    return InBounds(pos) && m_tiles[pos.row][pos.col] == '4';
+}
+
+bool ObstacleSystem::IsOppositePortalDestination(const Position& pos) const {
+    return InBounds(pos) && m_tiles[pos.row][pos.col] == '5';
+}
+
+bool ObstacleSystem::IsCratePortal(const Position& pos) const {
+    return InBounds(pos) && m_tiles[pos.row][pos.col] == '3';
+}
+
+bool ObstacleSystem::IsCratePortalDestination(const Position& pos) const {
+    return InBounds(pos) && m_tiles[pos.row][pos.col] == '6';
+}
+
+bool ObstacleSystem::IsSharedPortal(const Position& pos) const {
+    return InBounds(pos) && m_tiles[pos.row][pos.col] == '7';
+}
+
+bool ObstacleSystem::IsSharedPortalDestination(const Position& pos) const {
+    return InBounds(pos) && m_tiles[pos.row][pos.col] == '8';
 }
 
 bool ObstacleSystem::IsPrimaryGoal(const Position& pos) const {
@@ -169,7 +209,7 @@ bool ObstacleSystem::IsDoorOpen() const {
 }
 
 bool ObstacleSystem::IsBlocked(const Position& pos) const {
-	if (!InBounds(pos)) return false;
+    if (!InBounds(pos)) return false;
     return IsWall(pos) || (IsDoor(pos) && !IsDoorOpen());
 }
 
@@ -181,6 +221,43 @@ int ObstacleSystem::FindCrate(const Position& pos) const {
 }
 
 bool ObstacleSystem::IsCrate(const Position& pos) const { return FindCrate(pos) >= 0; }
+
+// find portal destination tiles for each type of portal, return {-1, -1} if not found
+ObstacleSystem::Position ObstacleSystem::FindPrimaryPortalDestination() const {
+    for (int row = 0; row < m_height; ++row) {
+        for (int col = 0; col < m_width; ++col) {
+            if (IsPrimaryPortalDestination({ row, col })) return { row, col };
+        }
+    }
+    return { -1, -1 };
+}
+
+ObstacleSystem::Position ObstacleSystem::FindOppositePortalDestination() const {
+    for (int row = 0; row < m_height; ++row) {
+        for (int col = 0; col < m_width; ++col) {
+            if (IsOppositePortalDestination({ row, col })) return { row, col };
+        }
+    }
+    return { -1, -1 };
+}
+
+ObstacleSystem::Position ObstacleSystem::FindCratePortalDestination() const {
+    for (int row = 0; row < m_height; ++row) {
+        for (int col = 0; col < m_width; ++col) {
+            if (IsCratePortalDestination({ row, col })) return { row, col };
+        }
+    }
+    return { -1, -1 };
+}
+
+ObstacleSystem::Position ObstacleSystem::FindSharedPortalDestination() const {
+    for (int row = 0; row < m_height; ++row) {
+        for (int col = 0; col < m_width; ++col) {
+            if (IsSharedPortalDestination({ row, col })) return { row, col };
+        }
+    }
+    return { -1, -1 };
+}
 
 bool ObstacleSystem::IsWon() const {
     return m_width > 0 && SamePosition(m_primary, m_primaryGoal) &&
@@ -203,10 +280,34 @@ bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
 
     // Both players calculate moves from the SAME pre-turn board state.
     const auto planMove = [this](Position start, int dr, int dc) {
-        MovePlan plan;
+
+		MovePlan plan;
         plan.destination = Advance(start, dr, dc);
+
         if (IsBlocked(plan.destination)) return plan;
-		// If character is moving on an ice tile, it will slide until it hits a wall, door, crate, or another character.
+		
+
+        // characters will be teleported to the portal destination after trying to move off a portal tile
+		// Primary and opposite portals are only usable by their respective characters but shared portals can be used by both characters and crates.
+        if (IsPrimaryPortal(start) && SamePosition(start, m_primary)) {
+			plan.destination = FindPrimaryPortalDestination();
+			plan.allowed = true;
+			return plan;
+        }
+
+		if (IsOppositePortal(start) && SamePosition(start, m_opposite)) {
+			plan.destination = FindOppositePortalDestination();
+			plan.allowed = true;
+            return plan;
+		}
+
+        if (IsSharedPortal(start)) {
+            plan.destination = FindSharedPortalDestination();
+            plan.allowed = true;
+            return plan;
+		}
+
+        // If character is moving on an ice tile, it will slide until it hits a wall, door, crate, or another character.
 		// If the character is sliding into a crate, the crate will be pushed in the same direction.
 		// characters can stay on ice tiles if there is a wall, door, or another character in the direction of movement.
         if (IsIceTile(plan.destination)) {
@@ -226,17 +327,20 @@ bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
             }
             plan.destination = icePos;
 		}
+
         plan.crateIndex = FindCrate(plan.destination);
         if (plan.crateIndex >= 0) {
             plan.crateDestination = Advance(plan.destination, dr, dc);
             if (IsBlocked(plan.crateDestination) || IsCrate(plan.crateDestination) ||
                 SamePosition(plan.crateDestination, m_primary) ||
                 SamePosition(plan.crateDestination, m_opposite)) return plan;
+
 			// If the crate is being pushed off the board or into an empty space, the move is not allowed.
             if (IsEmpty(plan.crateDestination) || !InBounds(plan.crateDestination)) {
                 plan.allowed = false;
                 return plan;
             }
+
 			// If the crate is being pushed onto an ice tile, it will slide until it hits a wall, door, another crate, or a character.
             if (IsIceTile(plan.crateDestination)) {
                 Position icePos = plan.crateDestination;
@@ -254,6 +358,23 @@ bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
                     }
                 }
                 plan.crateDestination = icePos;
+			}
+
+			// If the crate is being pushed onto a crate portal, it will be teleported to the crate portal destination.
+            if (IsCratePortal(plan.crateDestination)) {
+                plan.crateDestination = FindCratePortalDestination();
+				// If the crate portal destination is blocked by another crate or character, the move is not allowed.
+                if (IsCrate(plan.crateDestination) || SamePosition(plan.crateDestination, m_primary) || SamePosition(plan.crateDestination, m_opposite)) {
+					plan.allowed = false;
+					return plan;
+                }
+			}
+            if (IsSharedPortal(plan.crateDestination)) {
+                plan.crateDestination = FindSharedPortalDestination();
+                if (IsCrate(plan.crateDestination) || SamePosition(plan.crateDestination, m_primary) || SamePosition(plan.crateDestination, m_opposite)) {
+                    plan.allowed = false;
+                    return plan;
+                }
 			}
         }
         plan.allowed = true;

@@ -20,5 +20,13 @@ enum class eSprite : UINT {
 	PrimaryGoal,
 	OppositeGoal,
 	SharedGoal,
+	PrimaryPortal,
+	OppositePortal,
+	CratePortal,
+	PrimaryPortalDestination,
+	OppositePortalDestination,
+	CratePortalDestination,
+    SharedPortal,
+	SharedPortalDestination,
     Size
 };

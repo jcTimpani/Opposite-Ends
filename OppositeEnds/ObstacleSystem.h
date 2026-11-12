@@ -28,6 +28,16 @@ public:
 	bool IsEmpty(const Position& position) const;
     bool IsWall(const Position& position) const;
     bool IsIceTile(const Position& position) const;
+    // portal functions
+	bool IsPrimaryPortal(const Position& position) const;
+	bool IsOppositePortal(const Position& position) const;
+	bool IsPrimaryPortalDestination(const Position& position) const;
+	bool IsOppositePortalDestination(const Position& position) const;
+	bool IsCratePortal(const Position& position) const;
+	bool IsCratePortalDestination(const Position& position) const;
+	// shared portal can be used by characters and crates, but only one character can use it at a time and there should only be one shared portal and destination
+	bool IsSharedPortal(const Position& position) const;
+	bool IsSharedPortalDestination(const Position& position) const;
 	// added to make sure a tile is drawn under the characters, goals and crates
 	bool IsPrimaryGoal(const Position& position) const;
 	bool IsOppositeGoal(const Position& position) const;
@@ -43,6 +53,11 @@ public:
     bool IsDoorOpen() const;
     bool IsWon() const;
 	bool IsLost() const;
+
+	Position FindPrimaryPortalDestination() const;
+	Position FindOppositePortalDestination() const;
+	Position FindCratePortalDestination() const;
+	Position FindSharedPortalDestination() const;
 
     Position PrimaryPosition() const { return m_primary; }
     Position OppositePosition() const { return m_opposite; }

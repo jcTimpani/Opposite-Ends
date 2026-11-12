@@ -11,3 +11,11 @@
 | `k` | Pushable crate |
 | '-' | Empty space |
 | 'i' | Ice tile |
+| '1' | Primary portal |
+| '2' | Opposite portal |
+| '3' | Crate portal |
+| '4' | Primary portal destination |
+| '5' | Opposite portal destination |
+| '6' | Crate portal destination |
+| '7' | Shared portal |
+| '8' | Shared portal destination |
