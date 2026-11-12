@@ -15,6 +15,7 @@ private:
     LSpriteRenderer* m_pRenderer = nullptr;
     bool m_bGameStarted = false;
     bool m_bGameWon = false;
+	bool m_bGameLost = false;
     bool m_levelLoaded = false;
     bool m_allLevelsComplete = false;
     int m_levelNumber = 1;
@@ -50,7 +51,9 @@ private:
     void KeyboardHandler();
     void TryMove(int rowDelta, int colDelta);
     bool IsGameWon() const;
+	bool isGameLost() const;
     void GameWon();
+	void GameLost();
     void RenderFrame();
     void DrawStartScreen();
     bool MouseOverPlayButton();

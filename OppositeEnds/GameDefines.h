@@ -6,6 +6,7 @@ enum class eSprite : UINT {
     PlayButton,
     Tile,
     Wall,
+    Ice,
     Crate,
 	Background,
     PrimaryCharaDown,
@@ -19,6 +20,5 @@ enum class eSprite : UINT {
 	PrimaryGoal,
 	OppositeGoal,
 	SharedGoal,
-    FlashOverlay,
     Size
 };
