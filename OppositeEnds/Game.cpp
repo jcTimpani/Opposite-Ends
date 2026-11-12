@@ -17,6 +17,47 @@ void CGame::Initialize() {
     m_bGameWon = false;
 }
 
+bool CGame::MouseOverRect(float x, float y,
+    float width, float height) {
+    POINT mouse{};
+    if (!GetCursorPos(&mouse)) return false;
+
+    HWND window = GetActiveWindow();
+    if (!window) return false;
+    if (!ScreenToClient(window, &mouse)) return false;
+
+    RECT client{};
+    if (!GetClientRect(window, &client)) return false;
+    const float clientWidth = float(client.right - client.left);
+    const float clientHeight = float(client.bottom - client.top);
+    if (clientWidth <= 0 || clientHeight <= 0) return false;
+
+    // Convert window pixels to the logical 720x720 menu coordinates.
+    const float mx = float(mouse.x) * SCREEN_WIDTH / clientWidth;
+    const float my = SCREEN_HEIGHT - float(mouse.y) * SCREEN_HEIGHT / clientHeight;
+    return mx >= x - width * 0.5f && mx <= x + width * 0.5f &&
+        my >= y - height * 0.5f && my <= y + height * 0.5f;
+}
+
+void CGame::DrawMenuButton(const char* label,
+    float x, float y, float width, float height, float textX) {
+    const bool hover = MouseOverRect(x, y, width, height);
+    const eSprite sprite = hover ? eSprite::MenuButtonHover : eSprite::MenuButton;
+
+    LSpriteDesc2D button{};
+    button.m_nSpriteIndex = static_cast<UINT>(sprite);
+    button.m_vPos = Vector2(x, y);
+    button.m_fXScale = width / m_pRenderer->GetWidth(sprite);
+    button.m_fYScale = height / m_pRenderer->GetHeight(sprite);
+    button.m_f4Tint = XMFLOAT4(1, 1, 1, 1);
+    m_pRenderer->Draw(&button);
+
+    // The sprite position uses bottom-up Y, whereas DrawScreenText is top-down.
+    // Offset the text by approximately half of the 24px spritefont height.
+    const float textTop = SCREEN_HEIGHT - y - 13.0f;
+    m_pRenderer->DrawScreenText(label, Vector2(textX, textTop), Colors::White);
+}
+
 bool CGame::LoadLevel(int number) {
     std::ostringstream name;
     name << "Levels/level" << std::setfill('0') << std::setw(2) << number << ".txt";
@@ -32,7 +73,7 @@ bool CGame::LoadLevel(int number) {
             m_levelError.clear();
             m_allLevelsComplete = false;
             m_bGameWon = false;
-			m_bGameLost = false;
+            m_bGameLost = false;
             m_bGameStarted = true;
             m_primarySprite = eSprite::PrimaryCharaDown;
             m_oppositeSprite = eSprite::OppositeCharaDown;
@@ -52,7 +93,7 @@ void CGame::LoadImages() {
     m_pRenderer->Load(eSprite::PlayButton, "play");
     m_pRenderer->Load(eSprite::Tile, "tile");
     m_pRenderer->Load(eSprite::Wall, "wall");
-	m_pRenderer->Load(eSprite::Ice, "ice");
+    m_pRenderer->Load(eSprite::Ice, "ice");
     m_pRenderer->Load(eSprite::Crate, "crate");
     m_pRenderer->Load(eSprite::Background, "background");
     m_pRenderer->Load(eSprite::PrimaryCharaDown, "astronaut_a_down");
@@ -66,20 +107,14 @@ void CGame::LoadImages() {
     m_pRenderer->Load(eSprite::PrimaryGoal, "primary_goal");
     m_pRenderer->Load(eSprite::OppositeGoal, "opposite_goal");
     m_pRenderer->Load(eSprite::SharedGoal, "shared_goal");
+    m_pRenderer->Load(eSprite::MenuTitle, "menu_title");
+    m_pRenderer->Load(eSprite::MenuButton, "menu_button");
+    m_pRenderer->Load(eSprite::MenuButtonHover, "menu_button_hover");
+    m_pRenderer->Load(eSprite::MenuSettings, "menu_settings");
+    m_pRenderer->Load(eSprite::MenuInfo, "menu_info");
     m_pRenderer->EndResourceUpload();
 }
 
-bool CGame::MouseOverPlayButton() {
-    POINT mouse;
-    if (!GetCursorPos(&mouse)) return false;
-    HWND window = GetActiveWindow();
-    if (!window) return false;
-    ScreenToClient(window, &mouse);
-    const float mx = static_cast<float>(mouse.x);
-    const float my = SCREEN_HEIGHT - static_cast<float>(mouse.y);
-    return mx >= BUTTON_X - BUTTON_WIDTH / 2 && mx <= BUTTON_X + BUTTON_WIDTH / 2 &&
-        my >= BUTTON_Y - BUTTON_HEIGHT / 2 && my <= BUTTON_Y + BUTTON_HEIGHT / 2;
-}
 
 void CGame::KeyboardHandler() {
     m_pKeyboard->GetState();
@@ -113,13 +148,53 @@ void CGame::KeyboardHandler() {
             m_oppositeSprite = eSprite::OppositeCharaDown;
         }
         return;
-	}
+    }
+
 
     if (!m_bGameStarted) {
-        if ((m_pKeyboard->TriggerDown(VK_LBUTTON) && MouseOverPlayButton()) ||
-            m_pKeyboard->TriggerDown(VK_RETURN)) m_bGameStarted = true;
+        const bool click = m_pKeyboard->TriggerDown(VK_LBUTTON);
+        if (m_menuPage == MenuPage::Main) {
+            if ((click && MouseOverRect(360, 405, 342, 76)) ||
+                m_pKeyboard->TriggerDown(VK_RETURN)) {
+                LoadLevel(1);
+            }
+            else if (click && MouseOverRect(360, 305, 342, 76)) {
+                m_menuPage = MenuPage::LevelSelect;
+            }
+            else if (click && MouseOverRect(360, 205, 342, 76)) {
+                PostMessage(GetActiveWindow(), WM_CLOSE, 0, 0);
+            }
+            else if (click && MouseOverRect(68, 650, 66, 66)) {
+                m_menuPage = MenuPage::Settings;
+            }
+            else if (click && MouseOverRect(652, 650, 66, 66)) {
+                m_menuPage = MenuPage::HowToPlay;
+            }
+        }
+        else if (m_menuPage == MenuPage::HowToPlay) {
+            if (click && MouseOverRect(360, 115, 260, 72))
+                m_menuPage = MenuPage::Main;
+        }
+        else if (m_menuPage == MenuPage::Settings) {
+            if (click && MouseOverRect(360, 325, 342, 76))
+                m_showControls = !m_showControls;
+            else if (click && MouseOverRect(360, 150, 260, 72))
+                m_menuPage = MenuPage::Main;
+        }
+        else if (m_menuPage == MenuPage::LevelSelect && click) {
+            for (int level = 1; level <= 5; ++level) {
+                const float x = 120.0f + (level - 1) * 115.0f;
+                if (MouseOverRect(x, 360, 90, 70)) {
+                    LoadLevel(level);
+                    break;
+                }
+            }
+            if (!m_bGameStarted && MouseOverRect(360, 180, 260, 72))
+                m_menuPage = MenuPage::Main;
+        }
         return;
     }
+
     if (m_pKeyboard->TriggerDown('R')) {
         m_obstacles.Reset();
         m_facingHistory.clear();
@@ -237,16 +312,63 @@ Vector2 CGame::CellCenter(int row, int col) const {
         SCREEN_HEIGHT - (top + (row + 0.5f) * TILE_SIZE));
 }
 
+
 void CGame::DrawStartScreen() {
-    m_pRenderer->DrawScreenText("OPPOSITE ENDS", Vector2(270.0f, 180.0f), Colors::White);
-    LSpriteDesc2D button;
-    button.m_nSpriteIndex = static_cast<UINT>(eSprite::PlayButton);
-    button.m_vPos = Vector2(BUTTON_X, BUTTON_Y);
-    button.m_fXScale = BUTTON_WIDTH / m_pRenderer->GetWidth(eSprite::PlayButton);
-    button.m_fYScale = BUTTON_HEIGHT / m_pRenderer->GetHeight(eSprite::PlayButton);
-    button.m_f4Tint = MouseOverPlayButton()
-        ? XMFLOAT4(0.7f, 0.8f, 1.0f, 1.0f) : XMFLOAT4(1, 1, 1, 1);
-    m_pRenderer->Draw(&button);
+    auto drawSprite = [this](eSprite sprite, float x, float y,
+        float width, float height) {
+            LSpriteDesc2D desc{};
+            desc.m_nSpriteIndex = static_cast<UINT>(sprite);
+            desc.m_vPos = Vector2(x, y);
+            desc.m_fXScale = width / m_pRenderer->GetWidth(sprite);
+            desc.m_fYScale = height / m_pRenderer->GetHeight(sprite);
+            desc.m_f4Tint = XMFLOAT4(1, 1, 1, 1);
+            m_pRenderer->Draw(&desc);
+        };
+
+    if (m_menuPage == MenuPage::Main) {
+        // A single title sprite avoids the tiny default font and allows
+        // the two title colors to remain correctly spaced.
+        drawSprite(eSprite::MenuTitle, 360, 580, 570, 109);
+        m_pRenderer->DrawScreenText(
+            "TWO ASTRONAUTS. OPPOSITE MOVES.",
+            Vector2(86, 208), Colors::White);
+
+        // The buttons are positioned using the sprite renderer's bottom-up Y.
+        DrawMenuButton("PLAY", 360, 405, 342, 76, 327);
+        DrawMenuButton("LEVEL SELECT", 360, 305, 342, 76, 273);
+        DrawMenuButton("QUIT", 360, 205, 342, 76, 327);
+
+        drawSprite(eSprite::MenuSettings, 68, 650, 66, 66);
+        drawSprite(eSprite::MenuInfo, 652, 650, 66, 66);
+        m_pRenderer->DrawScreenText(
+            "SELECT A LEVEL OR PRESS ENTER TO PLAY",
+            Vector2(55, 620), Colors::White);
+    }
+    else if (m_menuPage == MenuPage::HowToPlay) {
+        m_pRenderer->DrawScreenText("HOW TO PLAY", Vector2(260, 110), Colors::Cyan);
+        m_pRenderer->DrawScreenText("Move red: WASD or arrow keys", Vector2(80, 195), Colors::White);
+        m_pRenderer->DrawScreenText("Blue moves in the opposite direction", Vector2(80, 245), Colors::White);
+        m_pRenderer->DrawScreenText("Guide both astronauts to their goals", Vector2(80, 295), Colors::White);
+        m_pRenderer->DrawScreenText("Push crates onto pressure plates", Vector2(80, 345), Colors::White);
+        m_pRenderer->DrawScreenText("Z: Undo    R: Reset    H: Hint", Vector2(80, 395), Colors::White);
+        DrawMenuButton("BACK", 360, 115, 260, 72, 328);
+    }
+    else if (m_menuPage == MenuPage::Settings) {
+        m_pRenderer->DrawScreenText("SETTINGS", Vector2(290, 110), Colors::Cyan);
+        m_pRenderer->DrawScreenText("GAMEPLAY OPTIONS", Vector2(242, 230), Colors::White);
+        DrawMenuButton(m_showControls ? "CONTROLS: ON" : "CONTROLS: OFF",
+            360, 325, 342, 76, 270);
+        DrawMenuButton("BACK", 360, 150, 260, 72, 328);
+    }
+    else if (m_menuPage == MenuPage::LevelSelect) {
+        m_pRenderer->DrawScreenText("SELECT LEVEL", Vector2(255, 110), Colors::Cyan);
+        for (int level = 1; level <= 5; ++level) {
+            const float x = 120.0f + (level - 1) * 115.0f;
+            const std::string name = std::to_string(level);
+            DrawMenuButton(name.c_str(), x, 360, 90, 70, x - 8);
+        }
+        DrawMenuButton("BACK", 360, 180, 260, 72, 328);
+    }
 }
 
 void CGame::DrawTile(int row, int col, const XMFLOAT4& color, eSprite sprite) {
@@ -330,8 +452,8 @@ void CGame::DrawGameGrid() {
             }
             else if (m_obstacles.IsIceTile(pos)) {
                 DrawTile(row, col, XMFLOAT4(0.5f, 0.8f, 1.0f, 1.0f), eSprite::Ice);
-			}
-			// make sure to draw the tiles under goals and start positions
+            }
+            // make sure to draw the tiles under goals and start positions
             else if (m_obstacles.IsTile(pos) || m_obstacles.IsPrimaryGoal(pos) || m_obstacles.IsOppositeGoal(pos) || m_obstacles.IsPrimaryStart(pos) || m_obstacles.IsOppositeStart(pos) || m_obstacles.IsCrateStart(pos)) {
                 DrawTile(row, col, (row + col) % 2 == 0 ? gray : lightGray);
             }
@@ -358,10 +480,12 @@ void CGame::RenderFrame() {
         DrawCharacter(m_oppositeSprite, m_obstacles.OppositePosition());
         std::string hud = "Level " + std::to_string(m_levelNumber) +
             "  Moves: " + std::to_string(m_obstacles.MoveCount());
-        
+
         m_pRenderer->DrawScreenText(hud.c_str(), Vector2(38, 666), Colors::White);
         // Keep the labels on separate short lines so they remain in the 720px window.
-        m_pRenderer->DrawScreenText("Z: Undo  R: Reset  H: Hint", Vector2(38, 628), Colors::White);
+        if (m_showControls) {
+            m_pRenderer->DrawScreenText("Z: Undo  R: Reset  H: Hint", Vector2(38, 628), Colors::White);
+        }
         if (!m_hintText.empty())
             m_pRenderer->DrawScreenText(m_hintText.c_str(), Vector2(38, 591), Colors::White);
         if (m_bGameWon) {
@@ -372,7 +496,7 @@ void CGame::RenderFrame() {
         }
         if (isGameLost()) {
             m_pRenderer->DrawScreenText("GAME LOST! R: RESET", Vector2(130, 355), Colors::White);
-		}
+        }
     }
     m_pRenderer->EndFrame();
 }
@@ -390,9 +514,9 @@ void CGame::ProcessFrame() {
 
 bool CGame::IsGameWon() const { return m_obstacles.IsWon(); }
 
-void CGame::GameWon() { 
+void CGame::GameWon() {
     m_bGameWon = true;
-	m_bGameLost = false;
+    m_bGameLost = false;
 }
 
 bool CGame::isGameLost() const { return m_obstacles.IsLost(); }
