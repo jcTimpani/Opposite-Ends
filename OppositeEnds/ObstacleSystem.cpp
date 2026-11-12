@@ -150,6 +150,10 @@ bool ObstacleSystem::IsWon() const {
 }
 
 bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
+    return TryMoveInternal(rowDelta, colDelta, true);
+}
+
+bool ObstacleSystem::TryMoveInternal(int rowDelta, int colDelta, bool recordHistory) {
     if (m_width == 0 || std::abs(rowDelta) + std::abs(colDelta) != 1) return false;
 
     struct MovePlan {
@@ -201,7 +205,7 @@ bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
         opposite.allowed = false;
     if (!primary.allowed && !opposite.allowed) return false;
 
-    m_history.push_back({ m_primary, m_opposite, m_crates });
+    if (recordHistory) m_history.push_back({ m_primary, m_opposite, m_crates });
     if (primary.allowed) {
         if (primary.crateIndex >= 0) m_crates[primary.crateIndex] = primary.crateDestination;
         m_primary = primary.destination;

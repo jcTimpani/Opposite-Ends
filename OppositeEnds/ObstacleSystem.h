@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+class PuzzleSolver;
+
 class ObstacleSystem {
 public:
     struct Position {
@@ -44,6 +46,9 @@ public:
     std::size_t CrateCount() const { return m_crates.size(); }
 
 private:
+    friend class PuzzleSolver;
+    bool TryMoveInternal(int rowDelta, int colDelta, bool recordHistory);
+
     using Crates = std::vector<Position>;
     struct Snapshot {
         Position primary;

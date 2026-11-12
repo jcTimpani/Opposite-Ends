@@ -4,6 +4,7 @@
 #include "SpriteRenderer.h"
 #include "GameDefines.h"
 #include "ObstacleSystem.h"
+#include "PuzzleSolver.h"
 #include <chrono>
 #include <string>
 #include <utility>
@@ -18,6 +19,7 @@ private:
     bool m_allLevelsComplete = false;
     int m_levelNumber = 1;
     std::string m_levelError;
+    std::string m_hintText;
     std::chrono::steady_clock::time_point m_edgeFlashUntil{};
 
     static constexpr int SCREEN_WIDTH = 720;

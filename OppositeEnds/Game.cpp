@@ -36,6 +36,7 @@ bool CGame::LoadLevel(int number) {
             m_primarySprite = eSprite::PrimaryCharaDown;
             m_oppositeSprite = eSprite::OppositeCharaDown;
             m_facingHistory.clear();
+            m_hintText.clear();
             return true;
         }
         // A found but invalid file is an error, not a missing next level.
@@ -90,6 +91,7 @@ void CGame::KeyboardHandler() {
             m_bGameStarted = true;
             m_allLevelsComplete = false;
             m_facingHistory.clear();
+            m_hintText.clear();
             m_primarySprite = eSprite::PrimaryCharaDown;
             m_oppositeSprite = eSprite::OppositeCharaDown;
         }
@@ -112,16 +114,36 @@ void CGame::KeyboardHandler() {
     if (m_pKeyboard->TriggerDown('R')) {
         m_obstacles.Reset();
         m_facingHistory.clear();
+        m_hintText.clear();
         m_primarySprite = eSprite::PrimaryCharaDown;
         m_oppositeSprite = eSprite::OppositeCharaDown;
         return;
     }
     if (m_pKeyboard->TriggerDown('Z')) {
         if (m_obstacles.Undo() && !m_facingHistory.empty()) {
+            m_hintText.clear();
             const auto previousFacing = m_facingHistory.back();
             m_facingHistory.pop_back();
             m_primarySprite = previousFacing.first;
             m_oppositeSprite = previousFacing.second;
+        }
+        return;
+    }
+
+    // H asks the exact puzzle solver for one next move. It never moves
+    // either player or modifies the undo history or move count.
+    if (m_pKeyboard->TriggerDown('H')) {
+        const auto hint = PuzzleSolver::Solve(m_obstacles);
+        if (hint.status == PuzzleSolver::Status::Solved) {
+            m_hintText = hint.moves.empty() ? "Already solved" :
+                "Hint: " + std::string(1, hint.moves[0]) +
+                "  (" + std::to_string(hint.moves.size()) + " moves remaining)";
+        }
+        else if (hint.status == PuzzleSolver::Status::StateLimit) {
+            m_hintText = "Hint: search limit reached";
+        }
+        else {
+            m_hintText = "Hint: no solution from here";
         }
         return;
     }
@@ -202,6 +224,7 @@ void CGame::TryMove(int dr, int dc) {
             m_primarySprite,
             m_oppositeSprite
         );
+        m_hintText.clear();
     }
 }
 
@@ -331,7 +354,10 @@ void CGame::RenderFrame() {
             "  Moves: " + std::to_string(m_obstacles.MoveCount());
         
         m_pRenderer->DrawScreenText(hud.c_str(), Vector2(38, 666), Colors::White);
-        m_pRenderer->DrawScreenText("Z: Undo  R: Reset", Vector2(410, 666), Colors::White);
+        // Keep the labels on separate short lines so they remain in the 720px window.
+        m_pRenderer->DrawScreenText("Z: Undo  R: Reset  H: Hint", Vector2(38, 628), Colors::White);
+        if (!m_hintText.empty())
+            m_pRenderer->DrawScreenText(m_hintText.c_str(), Vector2(38, 591), Colors::White);
         if (m_bGameWon) {
             const char* message = m_allLevelsComplete ? "ALL LEVELS COMPLETE!" :
                 (!m_levelError.empty() ? "NEXT LEVEL FILE INVALID" :
