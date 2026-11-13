@@ -291,20 +291,38 @@ bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
 		// Primary and opposite portals are only usable by their respective characters but shared portals can be used by both characters and crates.
         if (IsPrimaryPortal(start) && SamePosition(start, m_primary)) {
 			plan.destination = FindPrimaryPortalDestination();
-			plan.allowed = true;
-			return plan;
+            // if blocked by a character or crate move normally
+            if (SamePosition(plan.destination, m_opposite) || IsCrate(plan.destination)) {
+                plan.destination = Advance(start, dr, dc);
+            }
+            else {
+                plan.allowed = true;
+                return plan;
+            }
         }
 
 		if (IsOppositePortal(start) && SamePosition(start, m_opposite)) {
 			plan.destination = FindOppositePortalDestination();
-			plan.allowed = true;
-            return plan;
+            // if blocked by a character or crate move normally
+            if (SamePosition(plan.destination, m_opposite) || IsCrate(plan.destination)) {
+                plan.destination = Advance(start, dr, dc);
+            }
+            else {
+                plan.allowed = true;
+                return plan;
+            }
 		}
 
         if (IsSharedPortal(start)) {
             plan.destination = FindSharedPortalDestination();
-            plan.allowed = true;
-            return plan;
+            // if blocked by a character or crate move normally
+            if (SamePosition(plan.destination, m_opposite) || IsCrate(plan.destination)) {
+                plan.destination = Advance(start, dr, dc);
+            }
+            else {
+                plan.allowed = true;
+                return plan;
+            }
 		}
 
         // If character is moving on an ice tile, it will slide until it hits a wall, door, crate, or another character.
