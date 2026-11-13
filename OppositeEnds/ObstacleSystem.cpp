@@ -312,19 +312,40 @@ bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
 		// characters can stay on ice tiles if there is a wall, door, or another character in the direction of movement.
         if (IsIceTile(plan.destination)) {
             Position icePos = plan.destination;
+
             while (true) {
                 Position nextPos = Advance(icePos, dr, dc);
+
                 if (IsBlocked(nextPos) ||
                     SamePosition(nextPos, m_primary) ||
                     SamePosition(nextPos, m_opposite)) {
                     break;
                 }
+
+                if (IsCrate(nextPos)) {
+                    Position nextNextPos = Advance(nextPos, dr, dc);
+                    if (IsCrate(nextNextPos) || IsBlocked(nextNextPos) || !InBounds(nextNextPos) || IsEmpty(nextNextPos)) {
+                        break;
+                    }
+                    else {
+                        icePos = nextPos;
+                        break;
+                    }
+                }
+
                 if (!IsIceTile(nextPos)) {
 					icePos = nextPos;
 					break;
                 }
+
+                if (IsIceTile(nextPos)) {
+                    icePos = nextPos;
+                    continue;
+                }
+
                 icePos = nextPos;
             }
+
             plan.destination = icePos;
 		}
 
@@ -344,17 +365,19 @@ bool ObstacleSystem::TryMove(int rowDelta, int colDelta) {
 			// If the crate is being pushed onto an ice tile, it will slide until it hits a wall, door, another crate, or a character.
             if (IsIceTile(plan.crateDestination)) {
                 Position icePos = plan.crateDestination;
-                while (IsIceTile(icePos)) {
-                    icePos = Advance(icePos, dr, dc);
-                    if (IsBlocked(icePos) || IsCrate(icePos) ||
-                        SamePosition(icePos, m_primary) ||
-                        SamePosition(icePos, m_opposite)) {
-                        plan.allowed = false;
-                        return plan;
+                while (true) {
+                    Position nextPos = Advance(icePos, dr, dc);
+                    if (IsBlocked(nextPos) || IsCrate(nextPos) || IsEmpty(nextPos) || !InBounds(nextPos) ||
+                        SamePosition(nextPos, m_primary) ||
+                        SamePosition(nextPos, m_opposite)) {
+                        break;
                     }
-                    if (IsEmpty(icePos) || !InBounds(icePos)) {
-                        plan.allowed = false;
-                        return plan;
+                    if (IsIceTile(nextPos)) {
+                        icePos = nextPos;
+                    }
+                    if (!IsIceTile(nextPos)) {
+                        icePos = nextPos;
+                        break;
                     }
                 }
                 plan.crateDestination = icePos;
