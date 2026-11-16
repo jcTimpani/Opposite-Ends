@@ -29,7 +29,7 @@ static void ApplyPath(ObstacleSystem& board, const std::string& path) {
 static void TestLevelParsing() {
     ObstacleSystem board;
     std::string error;
-    assert(board.LoadFromText("eeeeee\nerecee\neehebe\neeeeee\n", &error));
+    assert(board.LoadFromText("......\n.r.c..\n..h.b.\n......\n", &error));
     assert(board.Width() == 6 && board.Height() == 4);
     assert(At(board.PrimaryPosition(), 1, 1));
     assert(At(board.OppositePosition(), 2, 4));
@@ -37,13 +37,13 @@ static void TestLevelParsing() {
     assert(At(board.OppositeGoal(), 2, 2));
 
     // Invalid maps cannot corrupt or replace the live puzzle.
-    assert(!board.LoadFromText("eee\nerb\n", &error));
+    assert(!board.LoadFromText("...\n.rb\n", &error));
     assert(!error.empty());
     assert(board.Width() == 6 && board.Height() == 4);
     assert(At(board.PrimaryPosition(), 1, 1));
-    assert(!board.LoadFromText("erch\ne!be\n", &error));
+    assert(!board.LoadFromText(".rch\n.!b.\n", &error));
     assert(!board.LoadFromText("rcbh\nww\n", &error));
-    assert(board.LoadFromText("eeeeee\r\nerecee\r\neehebe\r\neeeeee\r\n", &error));
+    assert(board.LoadFromText("......\r\n.r.c..\r\n..h.b.\r\n......\r\n", &error));
     assert(error.empty());
 }
 
@@ -51,11 +51,11 @@ static void TestWallsCratesPlatesAndUndo() {
     // Every object in this test is defined by the level text, not hard-coded coordinates.
     ObstacleSystem board;
     const std::string map =
-        "eeeeeeee\n"
-        "erkpdcee\n"
-        "eeeeeeee\n"
-        "heeebeee\n"
-        "eeeeeeee\n";
+        "........\n"
+        ".rkpdc..\n"
+        "........\n"
+        "h...b...\n"
+        "........\n";
     assert(board.LoadFromText(map));
     assert(board.CrateCount() == 1);
     assert(board.IsCrate({ 1, 2 }));
@@ -93,13 +93,51 @@ static void TestWallsCratesPlatesAndUndo() {
     assert(!board.IsDoorOpen());
     assert(board.MoveCount() == 0);
     assert(!board.Undo());
-    assert(board.IsWall({ -1, 0 }));
-    assert(board.IsWall({ 5, 0 }));
+    // The new loss mechanic treats space outside the grid as non-wall.
+    // IsWall must also be safe to call for out-of-range positions.
+    assert(!board.IsWall({ -1, 0 }));
+    assert(!board.IsWall({ 5, 0 }));
+    assert(!board.IsWall({ 0, -1 }));
+    assert(!board.IsWall({ 0, 8 }));
+}
+
+static void TestLossAndUndo() {
+    ObstacleSystem board;
+    // Neither board edge nor a missing floor tile is a wall. Entering either
+    // ends the run, but Undo still restores the previous safe positions.
+    assert(board.LoadFromText("r.c.\n....\nh..b\n"));
+    assert(!board.IsLost());
+    assert(!board.IsWall({ -1, 0 }));
+    assert(board.TryMove(-1, 0));
+    assert(board.IsLost());
+    assert(board.MoveCount() == 1);
+    assert(board.Undo());
+    assert(!board.IsLost());
+    assert(board.MoveCount() == 0);
+    assert(At(board.PrimaryPosition(), 0, 0));
+    assert(At(board.OppositePosition(), 2, 3));
+
+    assert(board.LoadFromText("r-c.\n....\nh..b\n"));
+    assert(board.IsEmpty({ 0, 1 }));
+    assert(!board.IsWall({ 0, 1 }));
+    assert(board.TryMove(0, 1));
+    assert(board.IsLost());
+    assert(board.Undo());
+    assert(!board.IsLost());
+
+    // Preserve the new ice behavior: one input slides onto the first
+    // non-ice tile, while the other astronaut moves in reverse.
+    assert(board.LoadFromText("....c\n.ri..\n.....\nh..b.\n.....\n"));
+    assert(board.IsIceTile({ 1, 2 }));
+    assert(board.TryMove(0, 1));
+    assert(At(board.PrimaryPosition(), 1, 3));
+    assert(At(board.OppositePosition(), 3, 2));
+    assert(!board.IsLost());
 }
 
 static void TestSolver() {
     ObstacleSystem board;
-    assert(board.LoadFromText("eeeeee\nerecee\neehebe\neeeeee\n"));
+    assert(board.LoadFromText("......\n.r.c..\n..h.b.\n......\n"));
     const auto shortPath = PuzzleSolver::Solve(board);
     assert(shortPath.status == PuzzleSolver::Status::Solved);
     assert(shortPath.moves == "DD");
@@ -157,6 +195,7 @@ static void TestRepositoryLevels() {
 int main() {
     TestLevelParsing();
     TestWallsCratesPlatesAndUndo();
+    TestLossAndUndo();
     TestSolver();
     TestRepositoryLevels();
     std::cout << "All loader, obstacle, gate, undo, hint and solvability tests passed.\n";

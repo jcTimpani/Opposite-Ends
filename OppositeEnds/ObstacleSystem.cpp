@@ -106,7 +106,9 @@ bool ObstacleSystem::IsEmpty(const Position& pos) const {
 }
 
 bool ObstacleSystem::IsWall(const Position& pos) const {
-    return m_tiles[pos.row][pos.col] == 'w';
+    // Out-of-bounds space is not a wall: stepping there is handled as a loss.
+    // Never index m_tiles until both coordinates have been checked.
+    return InBounds(pos) && m_tiles[pos.row][pos.col] == 'w';
 }
 
 bool ObstacleSystem::IsIceTile(const Position& pos) const {
