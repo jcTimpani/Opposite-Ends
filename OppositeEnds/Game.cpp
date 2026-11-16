@@ -12,6 +12,7 @@ void CGame::Initialize() {
     const XMVECTORF32 background = { 0.05f, 0.06f, 0.10f, 1.0f };
     m_pRenderer->SetBgColor(background);
     LoadImages();
+    m_progress.Load("OppositeEnds_scores.txt");
     m_levelLoaded = LoadLevel(1);
     m_bGameStarted = false;
     m_bGameWon = false;
@@ -79,6 +80,14 @@ bool CGame::LoadLevel(int number) {
             m_oppositeSprite = eSprite::OppositeCharaDown;
             m_facingHistory.clear();
             m_hintText.clear();
+            m_levelFingerprint = LevelProgress::FingerprintFile(prefix + name.str());
+            // Compute the shortest move count once per newly loaded board.
+            // If search is capped, the win remains valid but is unrated.
+            const auto parSearch = PuzzleSolver::Solve(m_obstacles, 20000);
+            m_levelPar = parSearch.status == PuzzleSolver::Status::Solved
+                ? static_cast<int>(parSearch.moves.size()) : -1;
+            m_winStars = 0;
+            m_scoreSaveFailed = false;
             return true;
         }
         // A found but invalid file is an error, not a missing next level.
@@ -482,17 +491,27 @@ void CGame::RenderFrame() {
             "  Moves: " + std::to_string(m_obstacles.MoveCount());
 
         m_pRenderer->DrawScreenText(hud.c_str(), Vector2(38, 666), Colors::White);
-        // Keep the labels on separate short lines so they remain in the 720px window.
+        const int best = m_progress.BestMoves(m_levelNumber, m_levelFingerprint);
+        const std::string stats = "Par: " +
+            (m_levelPar >= 0 ? std::to_string(m_levelPar) : "?") +
+            "  Best: " + (best >= 0 ? std::to_string(best) : "--");
+        m_pRenderer->DrawScreenText(stats.c_str(), Vector2(38, 628), Colors::White);
         if (m_showControls) {
-            m_pRenderer->DrawScreenText("Z: Undo  R: Reset  H: Hint", Vector2(38, 628), Colors::White);
+            m_pRenderer->DrawScreenText("Z: Undo  R: Reset  H: Hint", Vector2(38, 591), Colors::White);
         }
         if (!m_hintText.empty())
-            m_pRenderer->DrawScreenText(m_hintText.c_str(), Vector2(38, 591), Colors::White);
+            m_pRenderer->DrawScreenText(m_hintText.c_str(), Vector2(38, 554), Colors::White);
         if (m_bGameWon) {
             const char* message = m_allLevelsComplete ? "ALL LEVELS COMPLETE!" :
                 (!m_levelError.empty() ? "NEXT LEVEL FILE INVALID" :
                     "LEVEL COMPLETE! ENTER: NEXT");
             m_pRenderer->DrawScreenText(message, Vector2(130, 355), Colors::White);
+            const std::string rating = m_winStars > 0
+                ? "Stars: " + std::to_string(m_winStars) + "/3"
+                : "Stars: unavailable (no par)";
+            m_pRenderer->DrawScreenText(rating.c_str(), Vector2(130, 315), Colors::White);
+            if (m_scoreSaveFailed)
+                m_pRenderer->DrawScreenText("Best score not saved", Vector2(130, 275), Colors::White);
         }
         if (isGameLost()) {
             m_pRenderer->DrawScreenText("GAME LOST! R: RESET", Vector2(130, 355), Colors::White);
@@ -517,6 +536,12 @@ bool CGame::IsGameWon() const { return m_obstacles.IsWon(); }
 void CGame::GameWon() {
     m_bGameWon = true;
     m_bGameLost = false;
+    m_winStars = LevelProgress::StarsFor(m_obstacles.MoveCount(), m_levelPar);
+    m_progress.RecordCompletion(
+        m_levelNumber, m_levelFingerprint, m_obstacles.MoveCount());
+    // Retry even if no new record was set: the previous save may have failed.
+    m_scoreSaveFailed = m_levelFingerprint == 0 ||
+        !m_progress.Save("OppositeEnds_scores.txt");
 }
 
 bool CGame::isGameLost() const { return m_obstacles.IsLost(); }

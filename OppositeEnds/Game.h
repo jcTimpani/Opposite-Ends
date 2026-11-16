@@ -6,8 +6,10 @@
 #include "GameDefines.h"
 #include "ObstacleSystem.h"
 #include "PuzzleSolver.h"
+#include "LevelProgress.h"
 
 #include <chrono>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -33,6 +35,14 @@ private:
 
     std::string m_levelError;
     std::string m_hintText;
+
+    // Saved best moves are keyed by level number and file fingerprint, so
+    // redesigned levels cannot inherit scores from the previous layout.
+    LevelProgress m_progress;
+    std::uint64_t m_levelFingerprint = 0;
+    int m_levelPar = -1;
+    int m_winStars = 0;
+    bool m_scoreSaveFailed = false;
 
     std::chrono::steady_clock::time_point
         m_edgeFlashUntil{};
