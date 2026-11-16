@@ -15,3 +15,7 @@ Release/
 *.exe
 
 *.log
+# Personal bests are generated on the player's computer
+OppositeEnds_scores.txt
+OppositeEnds_scores.txt.tmp
+OppositeEnds_scores.txt.bak
